@@ -1,0 +1,25 @@
+# Dependency Directories
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+
+# Production Build Targets
+frontend/dist/
+frontend/dist-ssr/
+
+# Security and Credentials
+backend/.env
+backend/.env.local
+frontend/*.local
+
+# Logs
+backend/logs/
+*.log
+npm-debug.log*
+
+# System / IDE Files
+.DS_Store
+.vscode/
+.idea/
+.gemini/
+.agents/
