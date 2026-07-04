@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { FiShield, FiAlertTriangle, FiActivity, FiSlash, FiSettings, FiUser } from 'react-icons/fi';
+import { FiShield, FiAlertTriangle, FiActivity, FiSlash, FiSettings, FiUser, FiBarChart2, FiPlay } from 'react-icons/fi';
 
 const Sidebar = () => {
   const menuItems = [
@@ -8,6 +8,8 @@ const Sidebar = () => {
     { name: 'Attack Logs', path: '/attack-logs', icon: FiActivity },
     { name: 'Alert Center', path: '/alerts', icon: FiAlertTriangle },
     { name: 'Blocked IPs', path: '/blocked-ips', icon: FiSlash },
+    { name: 'Analytics', path: '/analytics', icon: FiBarChart2 },
+    { name: 'Attack Simulator', path: '/simulator', icon: FiPlay },
     { name: 'Settings', path: '/settings', icon: FiSettings },
     { name: 'Profile', path: '/profile', icon: FiUser },
   ];
@@ -33,10 +35,9 @@ const Sidebar = () => {
               key={item.path}
               to={item.path}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition ${
-                  isActive
-                    ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/25'
-                    : 'text-cyber-muted hover:text-white hover:bg-cyber-border/30'
+                `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition ${isActive
+                  ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/25'
+                  : 'text-cyber-muted hover:text-white hover:bg-cyber-border/30'
                 }`
               }
             >

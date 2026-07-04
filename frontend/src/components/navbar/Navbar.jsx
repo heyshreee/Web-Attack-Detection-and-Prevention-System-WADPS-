@@ -5,8 +5,20 @@ import { FiBell, FiLogOut, FiMenu } from 'react-icons/fi';
 const Navbar = () => {
   const navigate = useNavigate();
 
+  // Load actual user details
+  const userStr = localStorage.getItem('user');
+  let user = { name: 'Operator', role: 'operator' };
+  try {
+    if (userStr) {
+      user = JSON.parse(userStr);
+    }
+  } catch (err) {
+    console.error('Error parsing user storage details:', err);
+  }
+
   const handleLogout = () => {
-    // Basic redirect for now
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
     navigate('/login');
   };
 
@@ -25,7 +37,10 @@ const Navbar = () => {
 
       <div className="flex items-center gap-6">
         {/* Alerts Bell Indicator */}
-        <button className="relative text-cyber-muted hover:text-white transition p-1.5 rounded-lg hover:bg-cyber-border/40">
+        <button 
+          onClick={() => navigate('/alerts')}
+          className="relative text-cyber-muted hover:text-white transition p-1.5 rounded-lg hover:bg-cyber-border/40"
+        >
           <FiBell className="w-5 h-5" />
           <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500"></span>
         </button>
@@ -33,8 +48,10 @@ const Navbar = () => {
         {/* User profile dropdown / preview */}
         <div className="flex items-center gap-3 border-l border-cyber-border pl-6">
           <div className="text-right">
-            <p className="text-sm font-semibold text-white leading-none">Agent Smith</p>
-            <span className="text-[10px] text-cyber-muted font-mono uppercase">L5 Operator</span>
+            <p className="text-sm font-semibold text-white leading-none">{user.name}</p>
+            <span className="text-[10px] text-cyber-muted font-mono uppercase">
+              {user.role === 'admin' ? 'L5 Admin' : 'L2 Operator'}
+            </span>
           </div>
           <button
             onClick={handleLogout}

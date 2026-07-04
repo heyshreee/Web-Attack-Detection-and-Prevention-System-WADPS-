@@ -9,6 +9,8 @@ import Alerts from './pages/Alerts';
 import BlockedIPs from './pages/BlockedIPs';
 import Settings from './pages/Settings';
 import Profile from './pages/Profile';
+import Analytics from './pages/Analytics';
+import Simulator from './pages/Simulator';
 
 function App() {
   return (
@@ -25,6 +27,8 @@ function App() {
           <Route path="attack-logs" element={<AttackLogs />} />
           <Route path="alerts" element={<Alerts />} />
           <Route path="blocked-ips" element={<BlockedIPs />} />
+          <Route path="analytics" element={<Analytics />} />
+          <Route path="simulator" element={<Simulator />} />
           <Route path="settings" element={<Settings />} />
           <Route path="profile" element={<Profile />} />
         </Route>

@@ -1,14 +1,34 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import api from '../../services/api';
 
 const Register = () => {
+  const navigate = useNavigate();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Register submit', { name, email, password });
+    setError('');
+    setLoading(true);
+    try {
+      const res = await api.post('/auth/register', { name, email, password });
+      
+      // Auto-login after registration
+      localStorage.setItem('token', res.data.token);
+      localStorage.setItem('user', JSON.stringify(res.data.user));
+      
+      navigate('/dashboard');
+    } catch (err) {
+      console.error('Registration error:', err);
+      const errMsg = err.response?.data?.error || 'Registration failed. Check logs.';
+      setError(errMsg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -26,6 +46,12 @@ const Register = () => {
           <h2 className="text-2xl font-bold text-white tracking-tight">Register Operator</h2>
           <p className="text-cyber-muted text-sm mt-1">Establish your security clearance credentials.</p>
         </div>
+
+        {error && (
+          <div className="mb-6 p-4 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-xl text-sm font-medium">
+            ⚠️ {error}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
@@ -63,9 +89,10 @@ const Register = () => {
           </div>
           <button
             type="submit"
-            className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-medium py-3 px-4 rounded-xl transition shadow-lg shadow-cyan-600/25 active:scale-[0.98]"
+            disabled={loading}
+            className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-medium py-3 px-4 rounded-xl transition shadow-lg shadow-cyan-600/25 active:scale-[0.98] disabled:opacity-50"
           >
-            Create Operator Profile
+            {loading ? 'Registering operator...' : 'Create Operator Profile'}
           </button>
         </form>
 

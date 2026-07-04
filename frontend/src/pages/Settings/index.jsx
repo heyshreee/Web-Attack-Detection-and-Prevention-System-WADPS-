@@ -1,6 +1,17 @@
 import React from 'react';
 
 const Settings = () => {
+  const userStr = localStorage.getItem('user');
+  let user = { name: 'Operator', email: 'operator@wadps.local', role: 'operator', id: 'N/A' };
+  try {
+    if (userStr) {
+      const parsed = JSON.parse(userStr);
+      user = { ...user, ...parsed };
+    }
+  } catch (err) {
+    console.error('Error loading settings storage details:', err);
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -18,15 +29,16 @@ const Settings = () => {
                 <label className="block text-sm font-medium text-cyber-muted mb-2">Display Name</label>
                 <input
                   type="text"
-                  defaultValue="Agent Smith"
-                  className="w-full bg-cyber-bg border border-cyber-border rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-cyan-500"
+                  disabled
+                  value={user.name}
+                  className="w-full bg-cyber-card border border-cyber-border rounded-lg px-4 py-2 text-cyber-muted text-sm cursor-not-allowed"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-cyber-muted mb-2">Operator ID</label>
+                <label className="block text-sm font-medium text-cyber-muted mb-2">Operator ID / Clearance</label>
                 <input
                   type="text"
-                  defaultValue="OP-8820"
+                  value={user.id || user._id || 'OP-8820'}
                   disabled
                   className="w-full bg-cyber-card border border-cyber-border rounded-lg px-4 py-2 text-cyber-muted text-sm cursor-not-allowed"
                 />
@@ -34,7 +46,7 @@ const Settings = () => {
             </div>
           </div>
 
-          {/* Password Reset */}
+          {/* Password Reset Placeholder */}
           <div className="glass-panel p-6 rounded-xl border border-cyber-border">
             <h3 className="text-lg font-medium text-white mb-4">Update Access Credentials</h3>
             <div className="space-y-4">
@@ -42,27 +54,10 @@ const Settings = () => {
                 <label className="block text-sm font-medium text-cyber-muted mb-2">Current Access Key</label>
                 <input
                   type="password"
-                  className="w-full bg-cyber-bg border border-cyber-border rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-cyan-500"
-                  placeholder="••••••••"
+                  disabled
+                  className="w-full bg-cyber-card border border-cyber-border rounded-lg px-4 py-2 text-cyber-muted text-sm cursor-not-allowed"
+                  placeholder="•••••••• (Security settings locked)"
                 />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-cyber-muted mb-2">New Access Key</label>
-                  <input
-                    type="password"
-                    className="w-full bg-cyber-bg border border-cyber-border rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-cyan-500"
-                    placeholder="••••••••"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-cyber-muted mb-2">Confirm New Access Key</label>
-                  <input
-                    type="password"
-                    className="w-full bg-cyber-bg border border-cyber-border rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-cyan-500"
-                    placeholder="••••••••"
-                  />
-                </div>
               </div>
             </div>
           </div>
