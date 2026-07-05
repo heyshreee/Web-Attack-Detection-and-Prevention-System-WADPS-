@@ -5,7 +5,10 @@ import {
   hasSQLi,
   hasXSS,
   hasPathTraversal,
-  hasCommandInjection
+  hasCommandInjection,
+  checkBruteForce,
+  hasSuspiciousHeader,
+  isScanner
 } from './detectionEngine.js';
 
 // Prevention Engine Middleware (Active blocking & IP blacklisting)
@@ -60,6 +63,34 @@ const preventionEngine = async (req, res, next) => {
           attackType = 'Command Injection';
           break;
         }
+      }
+    }
+
+    // 5. Scan for Brute Force
+    if (!attackType) {
+      const isLoginRoute = req.originalUrl.includes('/login') || req.originalUrl.includes('/brute-force');
+      if (isLoginRoute) {
+        const isBrute = await checkBruteForce(req.ip);
+        if (isBrute) {
+          attackType = 'Brute Force Attempt';
+          matchedPayload = `Failed login threshold exceeded (>= 5 failed attempts in 60s)`;
+        }
+      }
+    }
+
+    // 6. Scan for Suspicious Headers
+    if (!attackType) {
+      matchedPayload = hasSuspiciousHeader(req.headers);
+      if (matchedPayload) {
+        attackType = 'Suspicious Header';
+      }
+    }
+
+    // 7. Scan for Scanner Probes
+    if (!attackType) {
+      matchedPayload = isScanner(req);
+      if (matchedPayload) {
+        attackType = 'Scanner Detection';
       }
     }
 

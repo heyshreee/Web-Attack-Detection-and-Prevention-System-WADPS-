@@ -9,7 +9,10 @@ import {
   FiTerminal, 
   FiAlertTriangle,
   FiCheckCircle,
-  FiXCircle
+  FiXCircle,
+  FiLock,
+  FiGrid,
+  FiHardDrive
 } from 'react-icons/fi';
 import api from '../../services/api';
 import axios from 'axios';
@@ -26,18 +29,18 @@ const ATTACKS = {
   },
   xss: {
     name: 'Cross-Site Scripting (XSS)',
-    method: 'GET',
-    endpoint: '/health',
-    paramKey: 'input',
+    method: 'POST',
+    endpoint: '/api/xss-machine/render',
+    paramKey: 'payload',
     payload: '<svg/onload=alert(1)>',
     description: 'Attempts to inject executable JavaScript code into web pages viewed by other users.',
     impact: 'Session hijacking, token theft, page defacement, or redirection to malicious phishing domains.'
   },
   traversal: {
-    name: 'Path Traversal',
+    name: 'Path Traversal / LFI',
     method: 'GET',
-    endpoint: '/health',
-    paramKey: 'file',
+    endpoint: '/api/traversal-machine/read',
+    paramKey: 'payload',
     payload: '../../../../etc/passwd',
     description: 'Attempts to escape the web root directory to access sensitive system files directly on the server.',
     impact: 'Exposure of system users lists, server credentials, application source code, or configuration files.'
@@ -45,12 +48,49 @@ const ATTACKS = {
   cmd: {
     name: 'Command Injection',
     method: 'POST',
-    endpoint: '/health',
-    paramKey: 'cmd',
+    endpoint: '/api/cmd-machine/exec',
+    paramKey: 'payload',
     payload: '; whoami',
     description: 'Attempts to pass shell commands to the operating system command execution pipeline.',
     impact: 'Remote Code Execution (RCE), arbitrary file deletion, malware installations, or complete server takeover.'
+  },
+  bruteforce: {
+    name: 'Brute Force Attack',
+    method: 'POST',
+    endpoint: '/api/brute-force-machine/login',
+    paramKey: 'payload',
+    payload: 'admin@wadps.local',
+    description: 'Attempts to guess credentials by sending rapid, successive authentication requests.',
+    impact: 'Account takeover, password compromise, resource exhaustion, or credential stuffing success.'
+  },
+  headers: {
+    name: 'Suspicious Headers',
+    method: 'GET',
+    endpoint: '/api/header-machine/check',
+    paramKey: 'payload',
+    payload: 'X-Hacker: Exploit-Attempt',
+    description: 'Injects custom headers containing exploit patterns or malicious tags parsed by the server.',
+    impact: 'Bypassing access controls, exploiting header processing flaws, or HTTP request smuggling.'
+  },
+  scanner: {
+    name: 'Scanner Detection',
+    method: 'GET',
+    endpoint: '/api/scanner-machine/scan',
+    paramKey: 'payload',
+    payload: 'sqlmap/1.4.12',
+    description: 'Simulates scanning patterns by querying routes with scanner-specific User-Agents or probing paths.',
+    impact: 'Information disclosure, automated mapping of application attack surface, or service scanning.'
   }
+};
+
+const SECURED_LABELS = {
+  sqli: 'Secure Code (Parameterized Queries)',
+  xss: 'Secure Code (HTML Entity Encoding)',
+  traversal: 'Secure Code (Path Whitelisting)',
+  cmd: 'Secure Code (Strict Input Validation)',
+  bruteforce: 'Secure Code (Lockout & Rate Limit Policy)',
+  headers: 'Secure Code (Header Validation)',
+  scanner: 'Secure Code (Scanner User-Agent Drops)'
 };
 
 const Simulator = () => {
@@ -108,6 +148,13 @@ const Simulator = () => {
 
     try {
       let response;
+      let reqHeaders = {
+        Host: 'localhost:5000',
+        'User-Agent': 'WADPS-Attack-Simulator/1.0',
+        Accept: 'application/json',
+        'Content-Type': 'application/json'
+      };
+
       if (activeTab === 'sqli') {
         // Run SQLi search machine with extra toggles
         response = await axios.post(targetUrl, {
@@ -116,15 +163,99 @@ const Simulator = () => {
         }, {
           validateStatus: () => true
         });
+      } else if (activeTab === 'bruteforce') {
+        // Run 6 rapid failed login requests to show brute force detection
+        let responses = [];
+        let wasBlocked = false;
+        
+        for (let i = 0; i < 6; i++) {
+          const res = await axios.post(targetUrl, {
+            email: customPayload,
+            password: `wrong_password_attempt_${i + 1}`,
+            secured: secured
+          }, {
+            validateStatus: () => true
+          });
+          
+          responses.push({
+            attempt: i + 1,
+            status: res.status,
+            data: res.data
+          });
+          
+          if (res.status === 429 || res.status === 403 || res.data.blocked === true) {
+            wasBlocked = true;
+          }
+          // Brief pause between requests to simulate rapid scanning/attacks
+          await new Promise(resolve => setTimeout(resolve, 80));
+        }
+
+        const lastRes = responses[responses.length - 1];
+        setResult({
+          status: lastRes.status,
+          statusText: 'Audit Concluded',
+          data: {
+            message: secured 
+              ? 'Repeated login failures triggered Account Lockout Policy.'
+              : 'Failed credentials entered. Request processed without account throttle.',
+            attempts: responses
+          },
+          headers: {},
+          wasBlocked,
+          shieldAtTime: securityActive
+        });
+        setSimulating(false);
+        return;
+
+      } else if (activeTab === 'headers') {
+        // Parse custom headers
+        const parts = customPayload.split(':');
+        let customHeaders = {};
+        if (parts.length >= 2) {
+          const name = parts[0].trim();
+          const val = parts.slice(1).join(':').trim();
+          customHeaders[name.toLowerCase()] = val;
+          reqHeaders[name] = val;
+        }
+
+        response = await axios.get(targetUrl, {
+          params: { secured: secured },
+          headers: customHeaders,
+          validateStatus: () => true
+        });
+
+      } else if (activeTab === 'scanner') {
+        let path = '/api/simulator-machine/scanner';
+        let customHeaders = {};
+
+        if (customPayload.startsWith('/')) {
+          path = customPayload;
+        } else {
+          customHeaders['User-Agent'] = customPayload;
+          reqHeaders['User-Agent'] = customPayload;
+        }
+
+        const finalUrl = `http://localhost:5000${path}`;
+        response = await axios.get(finalUrl, {
+          params: { secured: secured },
+          headers: customHeaders,
+          validateStatus: () => true
+        });
+
       } else {
+        // Standard XSS, Traversal, CMD machine routes
         if (attack.method === 'GET') {
           response = await axios.get(targetUrl, {
-            params: { [attack.paramKey]: customPayload },
-            validateStatus: () => true // Prevent axios from throwing error on 400
+            params: { 
+              [attack.paramKey]: customPayload,
+              secured: secured
+            },
+            validateStatus: () => true
           });
         } else {
           response = await axios.post(targetUrl, {
-            [attack.paramKey]: customPayload
+            [attack.paramKey]: customPayload,
+            secured: secured
           }, {
             validateStatus: () => true
           });
@@ -136,8 +267,9 @@ const Simulator = () => {
         statusText: response.statusText,
         data: response.data,
         headers: response.headers,
-        wasBlocked: response.status === 400 || response.status === 403 || (response.data && response.data.blocked === true),
-        shieldAtTime: securityActive
+        wasBlocked: response.status === 400 || response.status === 403 || response.status === 429 || (response.data && response.data.blocked === true),
+        shieldAtTime: securityActive,
+        requestHeadersSent: reqHeaders
       });
 
     } catch (err) {
@@ -147,7 +279,8 @@ const Simulator = () => {
         statusText: 'Internal Error',
         data: { error: 'Simulation communication failure' },
         wasBlocked: false,
-        shieldAtTime: securityActive
+        shieldAtTime: securityActive,
+        requestHeadersSent: {}
       });
     } finally {
       setSimulating(false);
@@ -211,7 +344,14 @@ const Simulator = () => {
           {/* Attack selector list */}
           <div className="space-y-2">
             {Object.entries(ATTACKS).map(([key, value]) => {
-              const Icon = key === 'sqli' ? FiGlobe : key === 'xss' ? FiAlertTriangle : key === 'traversal' ? FiFileText : FiTerminal;
+              const Icon = 
+                key === 'sqli' ? FiGlobe : 
+                key === 'xss' ? FiAlertTriangle : 
+                key === 'traversal' ? FiFileText : 
+                key === 'cmd' ? FiTerminal :
+                key === 'bruteforce' ? FiLock :
+                key === 'headers' ? FiGrid : FiHardDrive;
+
               return (
                 <button
                   key={key}
@@ -250,20 +390,19 @@ const Simulator = () => {
               />
             </div>
 
-            {activeTab === 'sqli' && (
-              <div className="flex items-center gap-2.5 bg-cyber-card/60 border border-cyber-border/85 px-3.5 py-3 rounded-xl">
-                <input
-                  type="checkbox"
-                  id="secured-toggle"
-                  checked={secured}
-                  onChange={(e) => setSecured(e.target.checked)}
-                  className="w-4 h-4 text-cyan-500 border-cyber-border rounded focus:ring-cyan-500/20 bg-cyber-bg cursor-pointer"
-                />
-                <label htmlFor="secured-toggle" className="text-xs font-semibold text-white cursor-pointer select-none">
-                  Secure Code (Parameterized Queries)
-                </label>
-              </div>
-            )}
+            {/* Render Secured Checkbox for all tabs */}
+            <div className="flex items-center gap-2.5 bg-cyber-card/60 border border-cyber-border/85 px-3.5 py-3 rounded-xl">
+              <input
+                type="checkbox"
+                id="secured-toggle"
+                checked={secured}
+                onChange={(e) => setSecured(e.target.checked)}
+                className="w-4 h-4 text-cyan-500 border-cyber-border rounded focus:ring-cyan-500/20 bg-cyber-bg cursor-pointer"
+              />
+              <label htmlFor="secured-toggle" className="text-xs font-semibold text-white cursor-pointer select-none">
+                {SECURED_LABELS[activeTab] || 'Secure Code Implementation'}
+              </label>
+            </div>
 
             <button
               onClick={handleLaunchSimulation}
@@ -271,7 +410,7 @@ const Simulator = () => {
               className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-semibold py-3 px-4 rounded-xl text-sm flex items-center justify-center gap-2 transition shadow-lg shadow-cyan-600/25 disabled:opacity-50"
             >
               <FiPlay className="w-4.5 h-4.5 animate-pulse" />
-              {simulating ? 'Sending Payload...' : 'Launch Simulation'}
+              {simulating ? 'Running Attack...' : 'Launch Simulation'}
             </button>
           </div>
         </div>
@@ -291,7 +430,7 @@ const Simulator = () => {
                       : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/25'
                   }`}>
                     {result.wasBlocked ? <FiXCircle /> : <FiCheckCircle />}
-                    HTTP STATUS {result.status} {result.statusText}
+                    {result.statusText.toUpperCase()} (HTTP {result.status})
                   </span>
                 )}
               </h3>
@@ -305,7 +444,7 @@ const Simulator = () => {
                   <div className="space-y-2">
                     <span className="text-cyber-muted text-xs uppercase block font-mono">Request Headers</span>
                     <pre className="bg-cyber-bg p-3 rounded-lg border border-cyber-border text-xs text-cyan-400 overflow-x-auto h-28 font-mono">
-                      {JSON.stringify({
+                      {JSON.stringify(result.requestHeadersSent || {
                         Host: 'localhost:5000',
                         'User-Agent': 'WADPS-Attack-Simulator/1.0',
                         Accept: 'application/json',
@@ -326,8 +465,8 @@ const Simulator = () => {
 
                 </div>
 
-                {/* Simulated SQL Terminal (For sqli machine search endpoint) */}
-                {result.data && result.data.queryStr && (
+                {/* Simulated SQL Terminal */}
+                {activeTab === 'sqli' && result.data && result.data.queryStr && (
                   <div className="bg-zinc-950 p-4 rounded-xl border border-cyber-border/80 font-mono text-xs text-white space-y-1.5">
                     <div className="flex items-center justify-between text-[10px] text-cyber-muted uppercase tracking-wider border-b border-cyber-border/40 pb-1 font-bold">
                       <span>Database Engine Telemetry</span>
@@ -379,13 +518,164 @@ const Simulator = () => {
                                       {row.role}
                                     </span>
                                   </td>
-                                  <td className={`px-3 py-1.5 font-mono ${isSecretLeak ? 'text-amber-400 font-bold animate-pulse' : 'text-cyber-muted'}`}>{row.secret_flag}</td>
+                                  <td className={`px-3 py-1.5 font-mono ${isSecretLeak ? 'text-amber-400 font-bold' : 'text-cyber-muted'}`}>{row.secret_flag}</td>
                                 </tr>
                               );
                             })
                           )}
                         </tbody>
                       </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* XSS Code Execution / Preview Terminal */}
+                {activeTab === 'xss' && result.data && result.data.renderedOutput !== undefined && (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="bg-zinc-950 p-4 rounded-xl border border-cyber-border/80 font-mono text-xs">
+                        <div className="text-[10px] text-cyber-muted uppercase tracking-wider border-b border-cyber-border/40 pb-1 font-bold mb-2">
+                          Reflected Source HTML Code
+                        </div>
+                        <pre className="text-cyan-300 font-semibold break-all whitespace-pre-wrap font-mono">
+                          {`<div>\n  <p>Search Result:</p>\n  ${result.data.renderedOutput}\n</div>`}
+                        </pre>
+                      </div>
+                      <div className="bg-zinc-950 p-4 rounded-xl border border-cyber-border/80 font-mono text-xs">
+                        <div className="text-[10px] text-cyber-muted uppercase tracking-wider border-b border-cyber-border/40 pb-1 font-bold mb-2">
+                          DOM Script Engine Evaluation
+                        </div>
+                        <div className={result.data.secured ? "text-emerald-400 font-bold" : "text-rose-400 font-bold animate-pulse"}>
+                          {result.data.secured 
+                            ? "🛡️ SAFE: HTML tags neutralized. Text rendered literally. No JavaScript execution occurred." 
+                            : "⚠️ DANGEROUS: Script tags rendered raw! JavaScript engine triggers alert() / cookie exfiltration."}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* OS Command Injection Terminal */}
+                {activeTab === 'cmd' && result.data && result.data.commandExecuted && (
+                  <div className="bg-zinc-950 p-4 rounded-xl border border-cyber-border/80 font-mono text-xs text-white space-y-1.5">
+                    <div className="flex items-center justify-between text-[10px] text-cyber-muted uppercase tracking-wider border-b border-cyber-border/40 pb-1 font-bold">
+                      <span>OS Shell Execution Console</span>
+                      <span className={result.data.secured ? "text-emerald-400" : "text-rose-400"}>
+                        {result.data.secured ? "🛡️ Parameter Validation (Secure)" : "⚠️ String Interpolation (Vulnerable)"}
+                      </span>
+                    </div>
+                    <div className="text-cyan-300 font-semibold break-all whitespace-pre-wrap font-mono">
+                      $ {result.data.commandExecuted}
+                    </div>
+                    <pre className="text-zinc-300 font-mono break-all whitespace-pre-wrap leading-relaxed mt-2 bg-black/60 p-2.5 rounded-lg border border-zinc-800">
+                      {result.data.output}
+                    </pre>
+                  </div>
+                )}
+
+                {/* Path Traversal & LFI File Viewer */}
+                {activeTab === 'traversal' && result.data && result.data.resolvedPath && (
+                  <div className="bg-zinc-950 p-4 rounded-xl border border-cyber-border/80 font-mono text-xs text-white space-y-1.5">
+                    <div className="flex items-center justify-between text-[10px] text-cyber-muted uppercase tracking-wider border-b border-cyber-border/40 pb-1 font-bold">
+                      <span>File Stream Streamer</span>
+                      <span className="text-cyan-300 font-semibold font-mono">{result.data.resolvedPath}</span>
+                    </div>
+                    <div className="text-[10px] text-cyber-muted italic pb-0.5">
+                      File Handler: {result.data.secured ? "Normalized Sandboxed whitelist lookup" : "Concatenated File Stream Reader"}
+                    </div>
+                    <pre className={`p-3 rounded-lg border text-xs overflow-x-auto h-28 font-mono leading-relaxed bg-black/60 ${
+                      result.data.content && result.data.content.includes('FLAG') 
+                        ? 'text-amber-400 border-amber-500/25 font-bold animate-pulse' 
+                        : 'text-zinc-300 border-zinc-800'
+                    }`}>
+                      {result.data.content}
+                    </pre>
+                  </div>
+                )}
+
+                {/* Brute Force Login attempts list */}
+                {activeTab === 'bruteforce' && result.data && result.data.attempts && (
+                  <div className="space-y-2">
+                    <span className="text-cyber-muted text-xs uppercase block font-mono font-bold">Rapid Login Request timeline</span>
+                    <div className="overflow-x-auto border border-cyber-border/60 rounded-xl bg-cyber-bg/40 max-h-48 scrollbar">
+                      <table className="min-w-full divide-y divide-cyber-border/60 text-left text-xs font-mono text-cyber-text">
+                        <thead className="bg-cyber-card/80 text-white uppercase text-[9px] tracking-wider sticky top-0">
+                          <tr>
+                            <th className="px-3 py-2 border-r border-cyber-border/60 text-center">Req #</th>
+                            <th className="px-3 py-2 border-r border-cyber-border/60">Email Target</th>
+                            <th className="px-3 py-2 border-r border-cyber-border/60">Simulated Password</th>
+                            <th className="px-3 py-2 border-r border-cyber-border/60 text-center">HTTP Code</th>
+                            <th className="px-3 py-2">Simulation Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-cyber-border/40">
+                          {result.data.attempts.map((attempt) => {
+                            const isLocked = attempt.status === 429 || (attempt.data && attempt.data.locked);
+                            const isBlocked = attempt.status === 403 || (attempt.data && attempt.data.blocked);
+                            return (
+                              <tr key={attempt.attempt} className={isLocked ? "bg-rose-950/20 text-rose-300" : isBlocked ? "bg-amber-950/20 text-amber-300" : "hover:bg-cyber-card/30"}>
+                                <td className="px-3 py-1.5 border-r border-cyber-border/40 text-center">{attempt.attempt}</td>
+                                <td className="px-3 py-1.5 border-r border-cyber-border/40 font-bold text-white">{customPayload}</td>
+                                <td className="px-3 py-1.5 border-r border-cyber-border/40 text-zinc-500">wrong_attempt_{attempt.attempt}</td>
+                                <td className="px-3 py-1.5 border-r border-cyber-border/40 text-center font-bold">
+                                  <span className={`px-1.5 py-0.5 rounded text-[10px] ${
+                                    attempt.status === 200 
+                                      ? 'bg-emerald-500/20 text-emerald-300' 
+                                      : isLocked 
+                                      ? 'bg-rose-500/20 text-rose-300' 
+                                      : 'bg-zinc-800 text-zinc-400'
+                                  }`}>
+                                    {attempt.status}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-1.5 text-xs font-sans">
+                                  {attempt.data.message || (attempt.data.error ? attempt.data.error : "Failed login")}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* HTTP Header Analyzer Output */}
+                {activeTab === 'headers' && result.data && result.data.detectedHeaders && (
+                  <div className="bg-zinc-950 p-4 rounded-xl border border-cyber-border/80 font-mono text-xs space-y-1.5">
+                    <div className="flex items-center justify-between text-[10px] text-cyber-muted uppercase tracking-wider border-b border-cyber-border/40 pb-1 font-bold">
+                      <span>Header Security telemetry</span>
+                      <span className={result.data.secured ? "text-emerald-400" : "text-amber-400"}>
+                        {result.data.secured ? "🛡️ Header Drop Policy Active" : "⚠️ Raw Header Parse Active"}
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-cyber-muted mb-1.5">
+                      Analyzed Threat Header Key/Values:
+                    </div>
+                    <pre className="text-zinc-300 font-mono break-all bg-black/60 p-2.5 rounded-lg border border-zinc-800">
+                      {JSON.stringify(result.data.detectedHeaders, null, 2)}
+                    </pre>
+                    <div className="text-[10px] text-cyber-muted italic pt-0.5">
+                      {result.data.message}
+                    </div>
+                  </div>
+                )}
+
+                {/* Scanner Detection Output */}
+                {activeTab === 'scanner' && result.data && (
+                  <div className="bg-zinc-950 p-4 rounded-xl border border-cyber-border/80 font-mono text-xs space-y-1.5">
+                    <div className="flex items-center justify-between text-[10px] text-cyber-muted uppercase tracking-wider border-b border-cyber-border/40 pb-1 font-bold">
+                      <span>Scanner Signature Analyzer</span>
+                      <span className={result.data.blocked ? "text-rose-400 animate-pulse" : "text-emerald-400"}>
+                        {result.data.blocked ? "🚫 SCANNER BLOCKED" : "✅ PASSED"}
+                      </span>
+                    </div>
+                    <div className="text-zinc-300 font-mono leading-relaxed bg-black/60 p-2.5 rounded-lg border border-zinc-800">
+                      <div><span className="text-cyan-400">User-Agent Signature:</span> {result.data.userAgent || 'Unknown'}</div>
+                      <div><span className="text-cyan-400">Path Queried:</span> {customPayload.startsWith('/') ? customPayload : '/api/simulator-machine/scanner'}</div>
+                    </div>
+                    <div className="text-[10px] text-cyber-muted italic pt-0.5">
+                      {result.data.message}
                     </div>
                   </div>
                 )}
@@ -403,18 +693,18 @@ const Simulator = () => {
                     </h4>
                     {result.wasBlocked ? (
                       <p>
-                        WADPS successfully inspected and rejected this request at the firewall boundary. The query was blocked before triggering any code operations on the route, protecting the server database from data leaks.
+                        WADPS successfully inspected and rejected this request at the firewall boundary. The query was blocked before triggering any code operations on the route, protecting the server.
                       </p>
                     ) : (
                       <p>
-                        {activeTab === 'sqli' && secured ? (
+                        {secured ? (
                           <span>
-                            <strong>Defense in Depth:</strong> Even though the WAF firewall was turned OFF (Bypass Mode), secure coding practices saved the database! Since the application code used <strong>parameterized queries</strong> (Prepared Statements), the SQL parser safely escaped the input and query manipulation was completely avoided.
+                            <strong>Defense in Depth:</strong> Even though the WAF firewall was bypassed (Bypass Mode), secure coding practices saved the server! Since the application code was <strong>secured</strong>, the threat was neutralized before execution.
                           </span>
                         ) : (
                           <span>
                             <strong>Risk:</strong> {ATTACKS[activeTab].impact} <br />
-                            Because both the security shield and parameterized query coding were deactivated/missing, the query executed directly on the database. An attacker has successfully bypassed logic or exfiltrated keys!
+                            Because both the security shield and safe programming models were deactivated/missing, the exploit successfully triggered!
                           </span>
                         )}
                       </p>
@@ -452,7 +742,7 @@ const Simulator = () => {
               <div>
                 <span className="text-cyan-400 uppercase font-mono font-bold block mb-1">Lightweight WAF Detection Rule:</span>
                 <span className="text-cyber-muted">
-                  WADPS checks inputs against signature lists and regex definitions before routes process data.
+                  WADPS checks inputs and headers against signature lists and regex definitions before routes process data.
                 </span>
               </div>
             </div>

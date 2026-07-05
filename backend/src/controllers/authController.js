@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { dbStore } from '../services/dbStore.js';
+import mongoose from 'mongoose';
+import { dbStore, isDbConnected, inMemory } from '../services/dbStore.js';
 import logger from '../config/logger.js';
 
 // Helper to sign JWT tokens
@@ -112,4 +113,35 @@ export const getMe = async (req, res) => {
     logger.error(`Profile fetch error: ${err.message}`);
     res.status(500).json({ error: 'Server Error', message: 'Could not fetch admin profile details.' });
   }
+};
+
+// @desc    Reset IP logs and block state (for testing / simulator cleanup)
+// @route   POST /api/auth/reset-ip
+export const resetIP = async (req, res) => {
+  const clientIP = req.ip;
+  try {
+    if (isDbConnected()) {
+      try {
+        await mongoose.model('BlockedIP').deleteMany({ ip: clientIP });
+        await mongoose.model('AttackLog').deleteMany({ ip: clientIP });
+        await mongoose.model('LoginHistory').deleteMany({ ip: clientIP });
+      } catch (err) {
+        logger.error(`Database reset error for IP ${clientIP}: ${err.message}`);
+      }
+    }
+  } catch (err) {
+    // Ignore
+  }
+
+  // Always reset in-memory fallback collections as well
+  inMemory.blockedIPs = inMemory.blockedIPs.filter(b => b.ip !== clientIP);
+  inMemory.attackLogs = inMemory.attackLogs.filter(a => a.ip !== clientIP);
+  inMemory.loginHistory = inMemory.loginHistory.filter(h => h.ip !== clientIP);
+  
+  logger.info(`[WADPS] Reset logs and blacklist status for IP: ${clientIP}`);
+
+  res.status(200).json({
+    success: true,
+    message: `Logs and block status reset successfully for IP: ${clientIP}`
+  });
 };

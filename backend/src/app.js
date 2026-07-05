@@ -14,6 +14,12 @@ import dashboardRoutes from './routes/dashboardRoutes.js';
 import logRoutes from './routes/logRoutes.js';
 import alertRoutes from './routes/alertRoutes.js';
 import sqliRoutes from './routes/sqliRoutes.js';
+import xssRoutes from './routes/xssRoutes.js';
+import cmdRoutes from './routes/cmdRoutes.js';
+import traversalRoutes from './routes/traversalRoutes.js';
+import bruteForceRoutes from './routes/bruteForceRoutes.js';
+import headerRoutes from './routes/headerRoutes.js';
+import scannerRoutes from './routes/scannerRoutes.js';
 import { dbStore } from './services/dbStore.js';
 
 dotenv.config();
@@ -141,6 +147,12 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/logs', logRoutes);
 app.use('/api/alerts', alertRoutes);
 app.use('/api/sqli-machine', sqliRoutes);
+app.use('/api/xss-machine', xssRoutes);
+app.use('/api/cmd-machine', cmdRoutes);
+app.use('/api/traversal-machine', traversalRoutes);
+app.use('/api/brute-force-machine', bruteForceRoutes);
+app.use('/api/header-machine', headerRoutes);
+app.use('/api/scanner-machine', scannerRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {

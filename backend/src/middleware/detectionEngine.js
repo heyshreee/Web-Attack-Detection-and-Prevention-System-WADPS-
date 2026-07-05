@@ -81,6 +81,54 @@ export const hasCommandInjection = (str) => {
   return directExecRegexes.some(regex => regex.test(str));
 };
 
+// Brute Force check
+export const checkBruteForce = async (ip) => {
+  const oneMinuteAgo = new Date(Date.now() - 60 * 1000);
+  const failures = await dbStore.countFailedLogins(ip, oneMinuteAgo);
+  return failures >= 5;
+};
+
+// Suspicious Header check
+export const hasSuspiciousHeader = (headers) => {
+  const suspiciousHeaderNames = ['x-hacker', 'x-exploit', 'x-malicious', 'x-waf-bypass'];
+  for (const name of suspiciousHeaderNames) {
+    if (headers[name]) {
+      return `Suspicious Header Found: ${name} = "${headers[name]}"`;
+    }
+  }
+
+  for (const key of Object.keys(headers)) {
+    const val = headers[key];
+    if (typeof val === 'string') {
+      const lowerKey = key.toLowerCase();
+      if (lowerKey === 'authorization' || lowerKey === 'host' || lowerKey === 'accept' || lowerKey === 'connection') {
+        continue;
+      }
+      if (hasSQLi(val)) return `Header [${key}] matches SQLi: ${val}`;
+      if (hasXSS(val)) return `Header [${key}] matches XSS: ${val}`;
+      if (hasCommandInjection(val)) return `Header [${key}] matches Command Injection: ${val}`;
+    }
+  }
+  return null;
+};
+
+// Scanner Detection check
+export const isScanner = (req) => {
+  const userAgent = req.headers['user-agent'] || '';
+  const scannerUARegex = /sqlmap|nikto|acunetix|nmap|nessus|dirbuster|gobuster|w3af|netsparker|webinspect|masscan|zgrab/i;
+  if (scannerUARegex.test(userAgent)) {
+    return `Scanner User-Agent: ${userAgent}`;
+  }
+
+  const path = req.path || '';
+  const scannerPathRegex = /\.(git|env|aws|ssh)\b|wp-admin|wp-login\.php|phpmyadmin|xmlrpc\.php|shell\.php|config\.php|info\.php|admin\/config/i;
+  if (scannerPathRegex.test(path)) {
+    return `Scanner Path Probe: ${path}`;
+  }
+
+  return null;
+};
+
 // Main Security Detection Middleware (Detection-Only, passive logging)
 const detectionEngine = async (req, res, next) => {
   try {
@@ -131,6 +179,34 @@ const detectionEngine = async (req, res, next) => {
       }
     }
 
+    // 5. Scan for Brute Force
+    if (!attackType) {
+      const isLoginRoute = req.originalUrl.includes('/login') || req.originalUrl.includes('/brute-force');
+      if (isLoginRoute) {
+        const isBrute = await checkBruteForce(req.ip);
+        if (isBrute) {
+          attackType = 'Brute Force Attempt';
+          matchedPayload = `Failed login threshold exceeded (>= 5 failed attempts in 60s)`;
+        }
+      }
+    }
+
+    // 6. Scan for Suspicious Headers
+    if (!attackType) {
+      matchedPayload = hasSuspiciousHeader(req.headers);
+      if (matchedPayload) {
+        attackType = 'Suspicious Header';
+      }
+    }
+
+    // 7. Scan for Scanner Probes
+    if (!attackType) {
+      matchedPayload = isScanner(req);
+      if (matchedPayload) {
+        attackType = 'Scanner Detection';
+      }
+    }
+
     // If an attack pattern is identified, log it passively but do NOT block
     if (attackType && matchedPayload) {
       const ip = req.ip;
@@ -142,7 +218,7 @@ const detectionEngine = async (req, res, next) => {
       try {
         await dbStore.createAttackLog({
           attackType,
-          severity: 'LOW',
+          severity: attackType === 'Brute Force Attempt' || attackType === 'Scanner Detection' ? 'MEDIUM' : 'LOW',
           payload: String(matchedPayload),
           url: req.originalUrl,
           method: req.method,
