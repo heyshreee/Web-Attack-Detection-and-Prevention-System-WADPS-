@@ -6,11 +6,14 @@ import rateLimit from 'express-rate-limit';
 import logger from './config/logger.js';
 import blacklistCheck from './middleware/blacklistCheck.js';
 import detectionEngine from './middleware/detectionEngine.js';
+import preventionEngine from './middleware/preventionEngine.js';
+import { securityState } from './config/securityState.js';
 import adminRoutes from './routes/adminRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import logRoutes from './routes/logRoutes.js';
 import alertRoutes from './routes/alertRoutes.js';
+import sqliRoutes from './routes/sqliRoutes.js';
 import { dbStore } from './services/dbStore.js';
 
 dotenv.config();
@@ -30,36 +33,6 @@ app.use(cors({
 // Body parsing middlewares
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// Request Monitoring Middleware (runs first to track total requests and block statistics)
-app.use((req, res, next) => {
-  const start = Date.now();
-  
-  res.on('finish', () => {
-    const duration = Date.now() - start;
-    const logMsg = `${req.ip} - ${req.method} ${req.originalUrl} - Status: ${res.statusCode} - Agent: ${req.headers['user-agent']} - ${duration}ms`;
-    
-    if (res.statusCode >= 400) {
-      logger.warn(logMsg);
-    } else {
-      logger.info(logMsg);
-    }
-
-    // Save request telemetry into our store service
-    dbStore.createRequestLog({
-      ip: req.ip,
-      method: req.method,
-      url: req.originalUrl,
-      userAgent: req.headers['user-agent'] || 'Unknown',
-      statusCode: res.statusCode,
-      duration,
-    }).catch(err => {
-      logger.error(`Error saving RequestLog: ${err.message}`);
-    });
-  });
-
-  next();
-});
 
 // Global Rate Limiter
 const limiter = rateLimit({
@@ -116,9 +89,45 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
+// Request Monitoring Middleware (runs first to track total requests and block statistics)
+app.use((req, res, next) => {
+  const start = Date.now();
+  
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    const logMsg = `${req.ip} - ${req.method} ${req.originalUrl} - Status: ${res.statusCode} - Agent: ${req.headers['user-agent']} - ${duration}ms`;
+    
+    if (res.statusCode >= 400) {
+      logger.warn(logMsg);
+    } else {
+      logger.info(logMsg);
+    }
+
+    // Save request telemetry into our store service
+    dbStore.createRequestLog({
+      ip: req.ip,
+      method: req.method,
+      url: req.originalUrl,
+      userAgent: req.headers['user-agent'] || 'Unknown',
+      statusCode: res.statusCode,
+      duration,
+    }).catch(err => {
+      logger.error(`Error saving RequestLog: ${err.message}`);
+    });
+  });
+
+  next();
+});
+
 // WADPS Security Shield Filters (runs on all requests)
 app.use(blacklistCheck);
-app.use(detectionEngine);
+app.use((req, res, next) => {
+  if (securityState.active) {
+    preventionEngine(req, res, next);
+  } else {
+    detectionEngine(req, res, next);
+  }
+});
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -131,6 +140,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/logs', logRoutes);
 app.use('/api/alerts', alertRoutes);
+app.use('/api/sqli-machine', sqliRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {

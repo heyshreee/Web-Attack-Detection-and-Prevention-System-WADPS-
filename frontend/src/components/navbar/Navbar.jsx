@@ -1,24 +1,14 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiBell, FiLogOut, FiMenu } from 'react-icons/fi';
+import { useAuth } from '../../context/AuthContext';
 
 const Navbar = () => {
   const navigate = useNavigate();
-
-  // Load actual user details
-  const userStr = localStorage.getItem('user');
-  let user = { name: 'Operator', role: 'operator' };
-  try {
-    if (userStr) {
-      user = JSON.parse(userStr);
-    }
-  } catch (err) {
-    console.error('Error parsing user storage details:', err);
-  }
+  const { user, logout } = useAuth();
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    logout();
     navigate('/login');
   };
 
@@ -50,7 +40,7 @@ const Navbar = () => {
           <div className="text-right">
             <p className="text-sm font-semibold text-white leading-none">{user.name}</p>
             <span className="text-[10px] text-cyber-muted font-mono uppercase">
-              {user.role === 'admin' ? 'L5 Admin' : 'L2 Operator'}
+              L5 Admin
             </span>
           </div>
           <button

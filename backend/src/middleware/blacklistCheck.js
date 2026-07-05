@@ -3,6 +3,15 @@ import logger from '../config/logger.js';
 import { securityState } from '../config/securityState.js';
 
 const blacklistCheck = async (req, res, next) => {
+  // Bypass administrative controls, authentication, and logs from blacklisting
+  if (
+    req.originalUrl.startsWith('/api/admin') || 
+    req.originalUrl.startsWith('/api/logs') ||
+    req.originalUrl.startsWith('/api/auth')
+  ) {
+    return next();
+  }
+
   // Bypass if security settings are turned OFF
   if (!securityState.active) {
     return next();
@@ -14,11 +23,11 @@ const blacklistCheck = async (req, res, next) => {
     // Check if the IP is blacklisted in the store (DB or In-Memory)
     const blockRecord = await dbStore.findBlockedIP(clientIP);
 
-    if (blockRecord) {
+    if (blockRecord && blockRecord.status !== 'Inactive') {
       // Check for expiry if set
       if (blockRecord.expiresAt && new Date() > new Date(blockRecord.expiresAt)) {
-        // Block has expired, remove block record
-        await dbStore.deleteBlockedIP(clientIP);
+        // Block has expired, mark as inactive
+        await dbStore.unblockIP(clientIP);
         logger.info(`Auto-unblocked expired blacklisted IP: ${clientIP}`);
         return next();
       }

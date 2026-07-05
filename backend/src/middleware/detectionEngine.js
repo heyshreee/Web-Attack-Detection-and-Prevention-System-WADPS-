@@ -1,9 +1,8 @@
 import { dbStore } from '../services/dbStore.js';
 import logger from '../config/logger.js';
-import { securityState } from '../config/securityState.js';
 
 // Recursive function to scan an object/array/string for attack vectors
-const scanObject = (obj, checkFn) => {
+export const scanObject = (obj, checkFn) => {
   if (typeof obj === 'string') {
     return checkFn(obj) ? obj : null;
   }
@@ -23,7 +22,7 @@ const scanObject = (obj, checkFn) => {
 };
 
 // SQL Injection Patterns
-const hasSQLi = (str) => {
+export const hasSQLi = (str) => {
   const sqliRegexes = [
     /\b(select|union|insert|update|delete|drop|alter|where|from|truncate|grant|revoke)\b/i,
     /\b(and|or)\b\s+[\d'=]+\s*=\s*[\d'=]+/i,
@@ -35,7 +34,7 @@ const hasSQLi = (str) => {
 };
 
 // Cross-Site Scripting (XSS) Patterns
-const hasXSS = (str) => {
+export const hasXSS = (str) => {
   const xssRegexes = [
     /<script[^>]*>([\s\S]*?)<\/script>/i,
     /javascript:/i,
@@ -52,7 +51,7 @@ const hasXSS = (str) => {
 };
 
 // Path Traversal Patterns
-const hasPathTraversal = (str) => {
+export const hasPathTraversal = (str) => {
   const traversalRegexes = [
     /\.\.\//, // ../
     /\.\.\\/, // ..\
@@ -64,7 +63,7 @@ const hasPathTraversal = (str) => {
 };
 
 // Command Injection Patterns
-const hasCommandInjection = (str) => {
+export const hasCommandInjection = (str) => {
   const dangerousPunctuation = /[;&|`]|(\$\()/.test(str);
   const commandWord = /\b(whoami|id|uname|ifconfig|ipconfig|netstat|ping|curl|wget|powershell|cmd|bash|sh|nc|ncat|netcat|cat\s+|type\s+|ls\s+|dir\s+)\b/i.test(str);
 
@@ -82,13 +81,8 @@ const hasCommandInjection = (str) => {
   return directExecRegexes.some(regex => regex.test(str));
 };
 
-// Main Security Detection Middleware
+// Main Security Detection Middleware (Detection-Only, passive logging)
 const detectionEngine = async (req, res, next) => {
-  // Bypass analysis if security is turned OFF
-  if (!securityState.active) {
-    return next();
-  }
-
   try {
     let matchedPayload = null;
     let attackType = null;
@@ -137,48 +131,40 @@ const detectionEngine = async (req, res, next) => {
       }
     }
 
-    // If an attack pattern is identified, block and log it
+    // If an attack pattern is identified, log it passively but do NOT block
     if (attackType && matchedPayload) {
-      const severity = 'HIGH';
-      const logMessage = `[SECURITY BLOCKED] ${attackType} detected from IP ${req.ip} - Payload: "${matchedPayload}" on ${req.method} ${req.originalUrl}`;
-      logger.warn(logMessage);
+      const ip = req.ip;
+      
+      const logMessage = `[SECURITY DETECTED (PASSIVE)] ${attackType} detected from IP ${ip} - Payload: "${matchedPayload}" on ${req.method} ${req.originalUrl}`;
+      logger.info(logMessage);
 
-      // Save Log and Alert using the dbStore abstraction
+      // Save passive audit log
       try {
         await dbStore.createAttackLog({
           attackType,
-          severity,
+          severity: 'LOW',
           payload: String(matchedPayload),
           url: req.originalUrl,
           method: req.method,
-          ip: req.ip,
+          ip,
           userAgent: req.headers['user-agent'] || 'Unknown',
         });
 
         await dbStore.createAlert({
-          level: 'CRITICAL',
-          title: `${attackType} Blocked`,
-          message: `${attackType} originating from IP ${req.ip} targeting ${req.method} ${req.originalUrl}. Payload: "${matchedPayload}"`,
+          level: 'INFO',
+          title: `${attackType} Detected (Passive)`,
+          message: `${attackType} originating from IP ${ip} targeting ${req.method} ${req.originalUrl} was parsed and monitored. Request allowed (Prevention Shield is OFF). Payload: "${matchedPayload}"`,
         });
       } catch (dbErr) {
-        logger.error(`Failed to save attack metrics: ${dbErr.message}`);
+        logger.error(`Failed to save passive attack metrics: ${dbErr.message}`);
       }
-
-      // Block request and return error response
-      return res.status(400).json({
-        blocked: true,
-        error: 'Security Threat Detected',
-        message: 'Your request was blocked by WADPS security filters.',
-        type: attackType,
-        payload: matchedPayload,
-      });
     }
 
     // Go to next middleware
     next();
   } catch (err) {
-    logger.error(`Security Engine internal error: ${err.message}`);
-    next(); // Fallback: allow request to prevent availability failure
+    logger.error(`Detection Engine internal error: ${err.message}`);
+    next();
   }
 };
 

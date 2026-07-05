@@ -17,10 +17,10 @@ import axios from 'axios';
 const ATTACKS = {
   sqli: {
     name: 'SQL Injection (SQLi)',
-    method: 'GET',
-    endpoint: '/health',
-    paramKey: 'search',
-    payload: '1 UNION SELECT username, password FROM users',
+    method: 'POST',
+    endpoint: '/api/sqli-machine/search',
+    paramKey: 'username',
+    payload: "' OR '1'='1",
     description: 'Attempts to manipulate database queries by appending SQL union selects to exfiltrate user credentials.',
     impact: 'Exfiltration of sensitive columns, administrative authentication bypass, or complete database breach.'
   },
@@ -57,6 +57,7 @@ const Simulator = () => {
   const [activeTab, setActiveTab] = useState('sqli');
   const [securityActive, setSecurityActive] = useState(true);
   const [customPayload, setCustomPayload] = useState(ATTACKS.sqli.payload);
+  const [secured, setSecured] = useState(false);
   const [toggleLoading, setToggleLoading] = useState(false);
   const [simulating, setSimulating] = useState(false);
 
@@ -80,6 +81,7 @@ const Simulator = () => {
   useEffect(() => {
     setCustomPayload(ATTACKS[activeTab].payload);
     setResult(null);
+    setSecured(false);
   }, [activeTab]);
 
   const handleToggle = async () => {
@@ -106,17 +108,27 @@ const Simulator = () => {
 
     try {
       let response;
-      if (attack.method === 'GET') {
-        response = await axios.get(targetUrl, {
-          params: { [attack.paramKey]: customPayload },
-          validateStatus: () => true // Prevent axios from throwing error on 400
-        });
-      } else {
+      if (activeTab === 'sqli') {
+        // Run SQLi search machine with extra toggles
         response = await axios.post(targetUrl, {
-          [attack.paramKey]: customPayload
+          username: customPayload,
+          secured: secured
         }, {
           validateStatus: () => true
         });
+      } else {
+        if (attack.method === 'GET') {
+          response = await axios.get(targetUrl, {
+            params: { [attack.paramKey]: customPayload },
+            validateStatus: () => true // Prevent axios from throwing error on 400
+          });
+        } else {
+          response = await axios.post(targetUrl, {
+            [attack.paramKey]: customPayload
+          }, {
+            validateStatus: () => true
+          });
+        }
       }
 
       setResult({
@@ -124,7 +136,7 @@ const Simulator = () => {
         statusText: response.statusText,
         data: response.data,
         headers: response.headers,
-        wasBlocked: response.status === 400 || response.status === 403,
+        wasBlocked: response.status === 400 || response.status === 403 || (response.data && response.data.blocked === true),
         shieldAtTime: securityActive
       });
 
@@ -238,6 +250,21 @@ const Simulator = () => {
               />
             </div>
 
+            {activeTab === 'sqli' && (
+              <div className="flex items-center gap-2.5 bg-cyber-card/60 border border-cyber-border/85 px-3.5 py-3 rounded-xl">
+                <input
+                  type="checkbox"
+                  id="secured-toggle"
+                  checked={secured}
+                  onChange={(e) => setSecured(e.target.checked)}
+                  className="w-4 h-4 text-cyan-500 border-cyber-border rounded focus:ring-cyan-500/20 bg-cyber-bg cursor-pointer"
+                />
+                <label htmlFor="secured-toggle" className="text-xs font-semibold text-white cursor-pointer select-none">
+                  Secure Code (Parameterized Queries)
+                </label>
+              </div>
+            )}
+
             <button
               onClick={handleLaunchSimulation}
               disabled={simulating}
@@ -299,6 +326,70 @@ const Simulator = () => {
 
                 </div>
 
+                {/* Simulated SQL Terminal (For sqli machine search endpoint) */}
+                {result.data && result.data.queryStr && (
+                  <div className="bg-zinc-950 p-4 rounded-xl border border-cyber-border/80 font-mono text-xs text-white space-y-1.5">
+                    <div className="flex items-center justify-between text-[10px] text-cyber-muted uppercase tracking-wider border-b border-cyber-border/40 pb-1 font-bold">
+                      <span>Database Engine Telemetry</span>
+                      <span className={result.data.secured ? "text-emerald-400" : "text-rose-400"}>
+                        {result.data.secured ? "🛡️ Parameterized Query (Secure)" : "⚠️ String Interpolation (Vulnerable)"}
+                      </span>
+                    </div>
+                    <div className="text-cyan-300 font-semibold break-all whitespace-pre-wrap font-mono">
+                      {result.data.queryStr}
+                    </div>
+                    <div className="text-[10px] text-cyber-muted italic pt-0.5">
+                      {result.data.message}
+                    </div>
+                  </div>
+                )}
+
+                {/* Database Leaked / Query Result Table (For SQLi) */}
+                {activeTab === 'sqli' && result.data && result.data.results && (
+                  <div className="space-y-2">
+                    <span className="text-cyber-muted text-xs uppercase block font-mono font-bold">Database Query Results ({result.data.results.length} rows returned)</span>
+                    <div className="overflow-x-auto border border-cyber-border/60 rounded-xl bg-cyber-bg/40 max-h-48 scrollbar">
+                      <table className="min-w-full divide-y divide-cyber-border/60 text-left text-xs font-mono text-cyber-text">
+                        <thead className="bg-cyber-card/80 text-white uppercase text-[9px] tracking-wider sticky top-0">
+                          <tr>
+                            <th className="px-3 py-2 border-r border-cyber-border/60">ID</th>
+                            <th className="px-3 py-2 border-r border-cyber-border/60">Username</th>
+                            <th className="px-3 py-2 border-r border-cyber-border/60">Email</th>
+                            <th className="px-3 py-2 border-r border-cyber-border/60">Role</th>
+                            <th className="px-3 py-2">Secret Flag</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-cyber-border/40">
+                          {result.data.results.length === 0 ? (
+                            <tr>
+                              <td colSpan="5" className="px-3 py-4 text-center text-cyber-muted italic">
+                                No database records found. SQL Injection successfully prevented!
+                              </td>
+                            </tr>
+                          ) : (
+                            result.data.results.map((row) => {
+                              const isSecretLeak = row.secret_flag && row.secret_flag.includes('FLAG');
+                              return (
+                                <tr key={row.id} className={isSecretLeak ? "bg-rose-950/20 text-rose-300" : "hover:bg-cyber-card/30"}>
+                                  <td className="px-3 py-1.5 border-r border-cyber-border/40 text-center">{row.id}</td>
+                                  <td className="px-3 py-1.5 border-r border-cyber-border/40 font-bold text-white">{row.username}</td>
+                                  <td className="px-3 py-1.5 border-r border-cyber-border/40">{row.email}</td>
+                                  <td className="px-3 py-1.5 border-r border-cyber-border/40">
+                                    <span className={`px-1 rounded text-[9px] font-bold ${row.role === 'admin' || row.role === 'SUPER_ADMIN' ? 'bg-cyan-500/20 text-cyan-300' : 'bg-zinc-800 text-zinc-400'}`}>
+                                      {row.role}
+                                    </span>
+                                  </td>
+                                  <td className={`px-3 py-1.5 font-mono ${isSecretLeak ? 'text-amber-400 font-bold animate-pulse' : 'text-cyber-muted'}`}>{row.secret_flag}</td>
+                                </tr>
+                              );
+                            })
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
                 {/* Threat Impact Explanation */}
                 <div className={`p-4 rounded-xl border flex gap-3 text-sm leading-relaxed ${
                   result.wasBlocked
@@ -316,8 +407,16 @@ const Simulator = () => {
                       </p>
                     ) : (
                       <p>
-                        <strong>Risk:</strong> {ATTACKS[activeTab].impact} <br />
-                        Because the security shield was deactivated, this query executed directly. In a production server, this payload would bypass authentication or exfiltrate databases!
+                        {activeTab === 'sqli' && secured ? (
+                          <span>
+                            <strong>Defense in Depth:</strong> Even though the WAF firewall was turned OFF (Bypass Mode), secure coding practices saved the database! Since the application code used <strong>parameterized queries</strong> (Prepared Statements), the SQL parser safely escaped the input and query manipulation was completely avoided.
+                          </span>
+                        ) : (
+                          <span>
+                            <strong>Risk:</strong> {ATTACKS[activeTab].impact} <br />
+                            Because both the security shield and parameterized query coding were deactivated/missing, the query executed directly on the database. An attacker has successfully bypassed logic or exfiltrated keys!
+                          </span>
+                        )}
                       </p>
                     )}
                   </div>

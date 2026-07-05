@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import api from '../../services/api';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
 const Login = () => {
+  const { login } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -14,12 +15,7 @@ const Login = () => {
     setError('');
     setLoading(true);
     try {
-      const res = await api.post('/auth/login', { email, password });
-      
-      // Save details to localStorage
-      localStorage.setItem('token', res.data.token);
-      localStorage.setItem('user', JSON.stringify(res.data.user));
-      
+      await login(email, password);
       navigate('/dashboard');
     } catch (err) {
       console.error('Login error:', err);
@@ -84,15 +80,6 @@ const Login = () => {
             {loading ? 'Decrypting credentials...' : 'Decrypt & Authenticate'}
           </button>
         </form>
-
-        <div className="mt-6 text-center text-sm">
-          <p className="text-cyber-muted">
-            New operator?{' '}
-            <Link to="/register" className="text-cyan-400 hover:text-cyan-300 font-medium">
-              Register Credentials
-            </Link>
-          </p>
-        </div>
       </div>
     </div>
   );

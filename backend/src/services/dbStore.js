@@ -16,14 +16,6 @@ const generateMockData = () => {
       password: bcrypt.hashSync('password', 10),
       role: 'admin',
       createdAt: new Date()
-    },
-    {
-      _id: new mongoose.Types.ObjectId(),
-      name: 'Sriram',
-      email: 's@gmail.com',
-      password: bcrypt.hashSync('password', 10),
-      role: 'operator',
-      createdAt: new Date()
     }
   ];
   
@@ -195,10 +187,29 @@ export const dbStore = {
       ip: blockData.ip,
       reason: blockData.reason || 'Manual block by admin',
       blockedAt: new Date(),
-      expiresAt: blockData.expiresAt || null
+      expiresAt: blockData.expiresAt || null,
+      status: blockData.status || 'Active'
     };
     inMemory.blockedIPs.push(newBlock);
     return newBlock;
+  },
+  unblockIP: async (ipOrId) => {
+    if (isDbConnected()) {
+      try {
+        const query = mongoose.Types.ObjectId.isValid(ipOrId)
+          ? { _id: ipOrId }
+          : { ip: ipOrId };
+        return await BlockedIP.findOneAndUpdate(query, { status: 'Inactive' }, { new: true });
+      } catch (err) {
+        // Fallback
+      }
+    }
+    const record = inMemory.blockedIPs.find(b => String(b._id) === String(ipOrId) || b.ip === ipOrId);
+    if (record) {
+      record.status = 'Inactive';
+      return record;
+    }
+    return null;
   },
   listBlockedIPs: async () => {
     if (isDbConnected()) {

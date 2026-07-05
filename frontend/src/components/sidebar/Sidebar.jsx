@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { FiShield, FiAlertTriangle, FiActivity, FiSlash, FiSettings, FiUser, FiBarChart2, FiPlay } from 'react-icons/fi';
+import { FiShield, FiAlertTriangle, FiActivity, FiSlash, FiBarChart2, FiPlay } from 'react-icons/fi';
 
 const Sidebar = () => {
   const menuItems = [
@@ -10,8 +10,6 @@ const Sidebar = () => {
     { name: 'Blocked IPs', path: '/blocked-ips', icon: FiSlash },
     { name: 'Analytics', path: '/analytics', icon: FiBarChart2 },
     { name: 'Attack Simulator', path: '/simulator', icon: FiPlay },
-    { name: 'Settings', path: '/settings', icon: FiSettings },
-    { name: 'Profile', path: '/profile', icon: FiUser },
   ];
 
   return (

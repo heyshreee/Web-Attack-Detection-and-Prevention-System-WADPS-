@@ -8,7 +8,7 @@ const blockedIPSchema = new mongoose.Schema({
   },
   reason: {
     type: String,
-    default: 'Manual operator block',
+    default: 'Manual admin block',
   },
   blockedAt: {
     type: Date,
@@ -16,6 +16,11 @@ const blockedIPSchema = new mongoose.Schema({
   },
   expiresAt: {
     type: Date, // null means permanent block
+  },
+  status: {
+    type: String,
+    enum: ['Active', 'Inactive'],
+    default: 'Active',
   },
 });
 
