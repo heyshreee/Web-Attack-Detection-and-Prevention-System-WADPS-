@@ -1,12 +1,31 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiBell, FiLogOut, FiMenu } from 'react-icons/fi';
+import { useAuth } from '../../context/AuthContext';
+import api from '../../services/api';
 
 const Navbar = () => {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const fetchUnreadCount = async () => {
+    try {
+      const res = await api.get('/alerts?read=false');
+      setUnreadCount(res.data.pagination.total || res.data.alerts.length || 0);
+    } catch (err) {
+      console.error('Error fetching unread count:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchUnreadCount();
+    const interval = setInterval(fetchUnreadCount, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleLogout = () => {
-    // Basic redirect for now
+    logout();
     navigate('/login');
   };
 
@@ -25,16 +44,25 @@ const Navbar = () => {
 
       <div className="flex items-center gap-6">
         {/* Alerts Bell Indicator */}
-        <button className="relative text-cyber-muted hover:text-white transition p-1.5 rounded-lg hover:bg-cyber-border/40">
+        <button 
+          onClick={() => navigate('/alerts')}
+          className="relative text-cyber-muted hover:text-white transition p-1.5 rounded-lg hover:bg-cyber-border/40"
+        >
           <FiBell className="w-5 h-5" />
-          <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500"></span>
+          {unreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center border border-slate-950 shadow-neon-rose animate-pulse">
+              {unreadCount}
+            </span>
+          )}
         </button>
 
         {/* User profile dropdown / preview */}
         <div className="flex items-center gap-3 border-l border-cyber-border pl-6">
           <div className="text-right">
-            <p className="text-sm font-semibold text-white leading-none">Agent Smith</p>
-            <span className="text-[10px] text-cyber-muted font-mono uppercase">L5 Operator</span>
+            <p className="text-sm font-semibold text-white leading-none">{user.name}</p>
+            <span className="text-[10px] text-cyber-muted font-mono uppercase">
+              L5 Admin
+            </span>
           </div>
           <button
             onClick={handleLogout}

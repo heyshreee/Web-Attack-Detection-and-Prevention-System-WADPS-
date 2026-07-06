@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+  <defs>
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00FFA3" />
+      <stop offset="100%" stop-color="#03A9F4" />
+    </linearGradient>
+  </defs>
+  <!-- Shield outline -->
+  <path d="M12 22C17.5 20.5 21 15.5 21 9.5V5L12 2L3 5v4.5C3 15.5 6.5 20.5 12 22Z" 
+        stroke="url(#shieldGrad)" 
+        stroke-width="2" 
+        stroke-linecap="round" 
+        stroke-linejoin="round" />
+  <!-- Lock icon in the center -->
+  <rect x="9" y="12" width="6" height="5" rx="1.5" stroke="#00FFA3" stroke-width="2" stroke-linejoin="round" />
+  <path d="M10 12V9.5C10 8.4 10.9 7.5 12 7.5C13.1 7.5 14 8.4 14 9.5V12" stroke="#00FFA3" stroke-width="2" stroke-linecap="round" />
+</svg>

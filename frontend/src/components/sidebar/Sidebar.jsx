@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { FiShield, FiAlertTriangle, FiActivity, FiSlash, FiSettings, FiUser } from 'react-icons/fi';
+import { FiShield, FiAlertTriangle, FiActivity, FiSlash, FiBarChart2, FiPlay } from 'react-icons/fi';
 
 const Sidebar = () => {
   const menuItems = [
@@ -8,14 +8,14 @@ const Sidebar = () => {
     { name: 'Attack Logs', path: '/attack-logs', icon: FiActivity },
     { name: 'Alert Center', path: '/alerts', icon: FiAlertTriangle },
     { name: 'Blocked IPs', path: '/blocked-ips', icon: FiSlash },
-    { name: 'Settings', path: '/settings', icon: FiSettings },
-    { name: 'Profile', path: '/profile', icon: FiUser },
+    { name: 'Analytics', path: '/analytics', icon: FiBarChart2 },
+    { name: 'Attack Simulator', path: '/simulator', icon: FiPlay },
   ];
 
   return (
     <aside className="w-64 bg-cyber-card border-r border-cyber-border min-h-screen flex flex-col hidden md:flex">
       {/* Brand Header */}
-      <div className="h-16 flex items-center px-6 border-b border-cyber-border bg-[#0e1526]/50">
+      <div className="h-16 flex items-center px-6 border-b border-cyber-border bg-cyber-bg/50">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 font-bold text-sm">
             W
@@ -33,10 +33,9 @@ const Sidebar = () => {
               key={item.path}
               to={item.path}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition ${
-                  isActive
-                    ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/25'
-                    : 'text-cyber-muted hover:text-white hover:bg-cyber-border/30'
+                `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition ${isActive
+                  ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/25'
+                  : 'text-cyber-muted hover:text-white hover:bg-cyber-border/30'
                 }`
               }
             >
@@ -48,7 +47,7 @@ const Sidebar = () => {
       </nav>
 
       {/* Footer Info */}
-      <div className="p-4 border-t border-cyber-border bg-[#0e1526]/30">
+      <div className="p-4 border-t border-cyber-border bg-cyber-bg/30">
         <div className="text-xs text-cyber-muted text-center font-mono">
           FW v1.0.0 // SEC_ACTIVE
         </div>
