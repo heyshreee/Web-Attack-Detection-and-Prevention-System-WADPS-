@@ -77,7 +77,7 @@ const Login = () => {
             disabled={loading}
             className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-medium py-3 px-4 rounded-xl transition shadow-lg shadow-cyan-600/25 active:scale-[0.98] disabled:opacity-50"
           >
-            {loading ? 'Decrypting credentials...' : 'Decrypt & Authenticate'}
+            {loading ? 'Processing access request...' : 'Grant Access'}
           </button>
         </form>
       </div>
