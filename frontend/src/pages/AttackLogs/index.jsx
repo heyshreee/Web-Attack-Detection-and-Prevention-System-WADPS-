@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import { FiDownload, FiSearch, FiRotateCw, FiEye, FiTrash2, FiX } from 'react-icons/fi';
 import api from '../../services/api';
@@ -386,12 +387,12 @@ const AttackLogs = () => {
       )}
 
       {/* Inspect Detail Modal */}
-      {selectedLog && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
+      {selectedLog && createPortal(
+        <div className="fixed inset-0 bg-cyber-bg/80 backdrop-blur-sm flex items-center justify-center p-4 z-[999] animate-fadeIn">
           <div className="w-full max-w-2xl bg-cyber-card border border-cyber-border rounded-2xl shadow-2xl overflow-hidden relative">
             
             {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-cyber-border bg-[#0e1526]/50 flex justify-between items-center">
+            <div className="px-6 py-4 border-b border-cyber-border bg-cyber-bg/50 flex justify-between items-center">
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
                 🔍 Threat Vector Details
               </h2>
@@ -467,7 +468,7 @@ const AttackLogs = () => {
             </div>
 
             {/* Modal Footer */}
-            <div className="px-6 py-4 border-t border-cyber-border bg-[#0e1526]/50 flex justify-end">
+            <div className="px-6 py-4 border-t border-cyber-border bg-cyber-bg/50 flex justify-end">
               <button
                 onClick={() => setSelectedLog(null)}
                 className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-semibold rounded-xl transition shadow-lg shadow-cyan-600/20"
@@ -477,7 +478,8 @@ const AttackLogs = () => {
             </div>
 
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

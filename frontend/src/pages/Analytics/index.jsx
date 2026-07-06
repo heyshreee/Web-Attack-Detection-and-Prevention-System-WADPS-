@@ -17,7 +17,7 @@ import {
 import { FiBarChart2, FiPieChart, FiTrendingUp, FiActivity } from 'react-icons/fi';
 import api from '../../services/api';
 
-const COLORS = ['#22d3ee', '#f43f5e', '#f59e0b', '#3b82f6', '#a855f7'];
+const COLORS = ['#00FFA3', '#f43f5e', '#f59e0b', '#3b82f6', '#a855f7'];
 
 const Analytics = () => {
   const [data, setData] = useState({
@@ -98,23 +98,24 @@ const Analytics = () => {
             <AreaChart data={data.timeline} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorRequests" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.2}/>
-                  <stop offset="95%" stopColor="#22d3ee" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="#00FFA3" stopOpacity={0.2}/>
+                  <stop offset="95%" stopColor="#00FFA3" stopOpacity={0}/>
                 </linearGradient>
                 <linearGradient id="colorAttacks" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.3}/>
                   <stop offset="95%" stopColor="#f43f5e" stopOpacity={0}/>
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#262626" />
               <XAxis dataKey="date" stroke="#9ca3af" style={{ fontSize: 12, fontFamily: 'monospace' }} />
               <YAxis stroke="#9ca3af" style={{ fontSize: 12, fontFamily: 'monospace' }} />
               <Tooltip 
-                contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px' }}
-                labelStyle={{ color: '#22d3ee', fontFamily: 'monospace' }}
+                contentStyle={{ backgroundColor: '#1A1A1A', border: '1px solid #262626', borderRadius: '12px' }}
+                labelStyle={{ color: '#00FFA3', fontFamily: 'monospace' }}
+                itemStyle={{ color: '#F2F2F2' }}
               />
               <Legend wrapperStyle={{ fontSize: 13, paddingTop: 10 }} />
-              <Area type="monotone" dataKey="requests" name="Total HTTP Traffic" stroke="#22d3ee" fillOpacity={1} fill="url(#colorRequests)" strokeWidth={2} />
+              <Area type="monotone" dataKey="requests" name="Total HTTP Traffic" stroke="#00FFA3" fillOpacity={1} fill="url(#colorRequests)" strokeWidth={2} />
               <Area type="monotone" dataKey="attacks" name="Blocked Threats" stroke="#f43f5e" fillOpacity={1} fill="url(#colorAttacks)" strokeWidth={2} />
             </AreaChart>
           </ResponsiveContainer>
@@ -147,8 +148,8 @@ const Analytics = () => {
                     ))}
                   </Pie>
                   <Tooltip 
-                    contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px' }}
-                    itemStyle={{ color: '#fff' }}
+                    contentStyle={{ backgroundColor: '#1A1A1A', border: '1px solid #262626', borderRadius: '12px' }}
+                    itemStyle={{ color: '#F2F2F2' }}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -180,19 +181,19 @@ const Analytics = () => {
                   >
                     {severityChartData.map((entry, index) => {
                       let color = '#3b82f6'; // default blue
-                      const name = String(entry.name).toUpperCase();
-                      if (name === 'CRITICAL') color = '#991b1b'; // dark red
-                      else if (name === 'HIGH') color = '#f43f5e'; // rose/light red
-                      else if (name === 'MEDIUM') color = '#f59e0b'; // amber
-                      else if (name === 'LOW') color = '#22d3ee'; // cyan
-                      else if (name === 'INFO') color = '#10b981'; // emerald green
-                      return <Cell key={`cell-${index}`} fill={color} />;
-                    })}
-                  </Pie>
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px' }}
-                    itemStyle={{ color: '#fff' }}
-                  />
+                    const name = String(entry.name).toUpperCase();
+                    if (name === 'CRITICAL') color = '#991b1b'; // dark red
+                    else if (name === 'HIGH') color = '#f43f5e'; // rose/light red
+                    else if (name === 'MEDIUM') color = '#f59e0b'; // amber
+                    else if (name === 'LOW') color = '#00FFA3'; // Cyber Green
+                    else if (name === 'INFO') color = '#10b981'; // emerald green
+                    return <Cell key={`cell-${index}`} fill={color} />;
+                  })}
+                </Pie>
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#1A1A1A', border: '1px solid #262626', borderRadius: '12px' }}
+                  itemStyle={{ color: '#F2F2F2' }}
+                />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
@@ -211,12 +212,12 @@ const Analytics = () => {
             {topIpChartData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={topIpChartData} layout="vertical" margin={{ left: 20, right: 20, top: 10, bottom: 10 }}>
-                  <CartesianGrid stroke="#1f2937" strokeDasharray="3 3" horizontal={false} />
+                  <CartesianGrid stroke="#262626" strokeDasharray="3 3" horizontal={false} />
                   <XAxis type="number" stroke="#9ca3af" style={{ fontSize: 10, fontFamily: 'monospace' }} />
                   <YAxis dataKey="ip" type="category" stroke="#9ca3af" style={{ fontSize: 10, fontFamily: 'monospace' }} />
                   <Tooltip 
-                    contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px' }}
-                    itemStyle={{ color: '#22d3ee' }}
+                    contentStyle={{ backgroundColor: '#1A1A1A', border: '1px solid #262626', borderRadius: '12px' }}
+                    itemStyle={{ color: '#F2F2F2' }}
                   />
                   <Bar dataKey="attacks" fill="#f43f5e" radius={[0, 4, 4, 0]} />
                 </BarChart>
@@ -239,14 +240,14 @@ const Analytics = () => {
             {topEndpointChartData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={topEndpointChartData} margin={{ left: 10, right: 10, top: 10, bottom: 10 }}>
-                  <CartesianGrid stroke="#1f2937" strokeDasharray="3 3" vertical={false} />
+                  <CartesianGrid stroke="#262626" strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="endpoint" stroke="#9ca3af" style={{ fontSize: 10, fontFamily: 'monospace' }} />
                   <YAxis stroke="#9ca3af" style={{ fontSize: 10, fontFamily: 'monospace' }} />
                   <Tooltip 
-                    contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px' }}
-                    itemStyle={{ color: '#22d3ee' }}
+                    contentStyle={{ backgroundColor: '#1A1A1A', border: '1px solid #262626', borderRadius: '12px' }}
+                    itemStyle={{ color: '#F2F2F2' }}
                   />
-                  <Bar dataKey="attacks" fill="#22d3ee" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="attacks" fill="#00FFA3" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (

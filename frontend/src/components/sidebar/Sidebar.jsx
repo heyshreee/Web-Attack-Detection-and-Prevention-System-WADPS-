@@ -15,7 +15,7 @@ const Sidebar = () => {
   return (
     <aside className="w-64 bg-cyber-card border-r border-cyber-border min-h-screen flex flex-col hidden md:flex">
       {/* Brand Header */}
-      <div className="h-16 flex items-center px-6 border-b border-cyber-border bg-[#0e1526]/50">
+      <div className="h-16 flex items-center px-6 border-b border-cyber-border bg-cyber-bg/50">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 font-bold text-sm">
             W
@@ -47,7 +47,7 @@ const Sidebar = () => {
       </nav>
 
       {/* Footer Info */}
-      <div className="p-4 border-t border-cyber-border bg-[#0e1526]/30">
+      <div className="p-4 border-t border-cyber-border bg-cyber-bg/30">
         <div className="text-xs text-cyber-muted text-center font-mono">
           FW v1.0.0 // SEC_ACTIVE
         </div>

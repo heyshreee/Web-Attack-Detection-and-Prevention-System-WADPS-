@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   FiShield, FiLock, FiUnlock, FiPlus, FiSearch, 
   FiInfo, FiX, FiDownload, FiActivity, FiGlobe, FiTarget, 
@@ -594,8 +595,8 @@ const BlockedIPs = () => {
       )}
 
       {/* Attacker Detail Modal */}
-      {isDetailsModalOpen && selectedIp && (
-        <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fadeIn">
+      {isDetailsModalOpen && selectedIp && createPortal(
+        <div className="fixed inset-0 bg-cyber-bg/85 backdrop-blur-md flex items-center justify-center p-4 z-[999] animate-fadeIn">
           <div className="w-full max-w-lg bg-cyber-card border border-cyber-border p-6 rounded-2xl shadow-2xl relative overflow-hidden">
             {/* Visual Risk Glow */}
             <div className={`absolute -top-12 -left-12 w-32 h-32 blur-[60px] opacity-25 rounded-full ${
@@ -686,7 +687,7 @@ const BlockedIPs = () => {
                 </div>
                 <div className="bg-cyber-bg/30 border border-cyber-border/40 p-3 rounded-xl">
                   <span className="text-xs text-cyber-muted flex items-center gap-1.5"><FiActivity className="w-3.5 h-3.5" /> Total Inbound Requests</span>
-                  <span className="text-white font-black font-mono block mt-1.5 text-base">{selectedIp.requests}</span>
+                  <span className="text-rose-500 font-black font-mono block mt-1.5 text-base">{selectedIp.requests}</span>
                 </div>
               </div>
 
@@ -720,12 +721,13 @@ const BlockedIPs = () => {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Block Custom IP Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fadeIn">
+      {isModalOpen && createPortal(
+        <div className="fixed inset-0 bg-cyber-bg/85 backdrop-blur-md flex items-center justify-center p-4 z-[999] animate-fadeIn">
           <div className="w-full max-w-md bg-cyber-card border border-cyber-border p-6 rounded-2xl shadow-2xl relative">
             <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
               <FiLock className="text-rose-400 animate-pulse" /> Blacklist Custom IP Address
@@ -792,7 +794,8 @@ const BlockedIPs = () => {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

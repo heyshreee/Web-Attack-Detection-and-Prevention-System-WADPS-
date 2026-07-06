@@ -198,23 +198,24 @@ const Dashboard = () => {
             <AreaChart data={timeline} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorRequests" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.2}/>
-                  <stop offset="95%" stopColor="#22d3ee" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="#00FFA3" stopOpacity={0.2}/>
+                  <stop offset="95%" stopColor="#00FFA3" stopOpacity={0}/>
                 </linearGradient>
                 <linearGradient id="colorAttacks" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.3}/>
                   <stop offset="95%" stopColor="#f43f5e" stopOpacity={0}/>
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#262626" />
               <XAxis dataKey="date" stroke="#9ca3af" style={{ fontSize: 12, fontFamily: 'monospace' }} />
               <YAxis stroke="#9ca3af" style={{ fontSize: 12, fontFamily: 'monospace' }} />
               <Tooltip 
-                contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px' }}
-                labelStyle={{ color: '#22d3ee', fontFamily: 'monospace' }}
+                contentStyle={{ backgroundColor: '#1A1A1A', border: '1px solid #262626', borderRadius: '12px' }}
+                labelStyle={{ color: '#00FFA3', fontFamily: 'monospace' }}
+                itemStyle={{ color: '#F2F2F2' }}
               />
               <Legend wrapperStyle={{ fontSize: 13, paddingTop: 10 }} />
-              <Area type="monotone" dataKey="requests" name="Total HTTP Traffic" stroke="#22d3ee" fillOpacity={1} fill="url(#colorRequests)" strokeWidth={2} />
+              <Area type="monotone" dataKey="requests" name="Total HTTP Traffic" stroke="#00FFA3" fillOpacity={1} fill="url(#colorRequests)" strokeWidth={2} />
               <Area type="monotone" dataKey="attacks" name="Blocked Threats" stroke="#f43f5e" fillOpacity={1} fill="url(#colorAttacks)" strokeWidth={2} />
             </AreaChart>
           </ResponsiveContainer>

@@ -4,6 +4,15 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --color-background: #0D0D0D; /* Deep Void */
+  --color-surface: #1A1A1A;    /* Matte Charcoal */
+  --color-text: #F2F2F2;       /* Crisp White */
+  --color-muted: #A1A1AA;      /* Zinc 400 */
+  --color-accent: #00FFA3;     /* Cyber Green */
+  --color-border: #262626;     /* Muted dark grey border */
+  --color-primary: #00FFA3;    /* Using Cyber Green as primary accent */
+}
 
 body {
   margin: 0;
@@ -12,32 +21,32 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #0a0f1d;
-  color: #e2e8f0;
+  background-color: var(--color-background);
+  color: var(--color-text);
   overflow-x: hidden;
 }
 
 /* Custom Glassmorphism Panels */
 .glass-panel {
-  background: rgba(19, 27, 46, 0.7);
+  background: rgba(26, 26, 26, 0.7);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(31, 45, 77, 0.5);
+  border: 1px solid rgba(38, 38, 38, 0.5);
 }
 
 .glass-panel-hover {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .glass-panel-hover:hover {
-  background: rgba(19, 27, 46, 0.85);
-  border-color: rgba(0, 240, 255, 0.4);
-  box-shadow: 0 0 15px rgba(0, 240, 255, 0.15);
+  background: rgba(26, 26, 26, 0.85);
+  border-color: rgba(0, 255, 163, 0.4);
+  box-shadow: 0 0 15px rgba(0, 255, 163, 0.15);
   transform: translateY(-2px);
 }
 
 /* Neon Text Glows */
 .text-neon-cyan {
-  color: #00f0ff;
-  text-shadow: 0 0 8px rgba(0, 240, 255, 0.5);
+  color: var(--color-accent);
+  text-shadow: 0 0 8px rgba(0, 255, 163, 0.5);
 }
 
 .text-neon-danger {
@@ -51,12 +60,12 @@ body {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #0a0f1d;
+  background: var(--color-background);
 }
 ::-webkit-scrollbar-thumb {
-  background: #1f2d4d;
+  background: var(--color-border);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #00f0ff;
+  background: var(--color-accent);
 }
