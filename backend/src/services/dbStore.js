@@ -7,6 +7,18 @@ import AttackLog from '../models/AttackLog.js';
 import Alert from '../models/Alert.js';
 import RequestLog from '../models/RequestLog.js';
 
+const normalizeIP = (ip) => {
+  if (typeof ip !== 'string') return ip;
+  let clean = ip.trim();
+  if (clean.startsWith('::ffff:')) {
+    clean = clean.substring(7);
+  }
+  if (clean === '::1') {
+    clean = '127.0.0.1';
+  }
+  return clean;
+};
+
 const generateMockData = () => {
   const users = [
     {
@@ -59,12 +71,27 @@ const generateMockData = () => {
       const attackType = attackTypes[Math.floor(Math.random() * attackTypes.length)];
       const severity = severities[Math.floor(Math.random() * severities.length)];
       
+      let payload = '<script>alert(1)</script>';
+      if (attackType === 'SQL Injection') {
+        payload = 'UNION SELECT username, password';
+      } else if (attackType === 'Path Traversal') {
+        payload = '../../../../etc/passwd';
+      } else if (attackType === 'Command Injection') {
+        payload = '; whoami';
+      } else if (attackType === 'Brute Force Attempt') {
+        payload = 'Failed login threshold exceeded (>= 5 failed attempts in 60s)';
+      } else if (attackType === 'Suspicious Header') {
+        payload = 'X-Hacker: Exploit-Attempt';
+      } else if (attackType === 'Scanner Detection') {
+        payload = 'sqlmap/1.4.12';
+      }
+
       const newAttackId = new mongoose.Types.ObjectId();
       attackLogs.push({
         _id: newAttackId,
         attackType,
         severity,
-        payload: attackType === 'SQL Injection' ? 'UNION SELECT username, password' : '<script>alert(1)</script>',
+        payload,
         url: urls[Math.floor(Math.random() * urls.length)],
         method: 'GET',
         ip: ips[Math.floor(Math.random() * ips.length)],
@@ -152,28 +179,33 @@ export const dbStore = {
 
   // BlockedIPs
   findBlockedIP: async (ip) => {
+    const cleanIp = normalizeIP(ip);
     if (isDbConnected()) {
       try {
-        return await BlockedIP.findOne({ ip });
+        return await BlockedIP.findOne({ $or: [{ ip: cleanIp }, { ip: `::ffff:${cleanIp}` }] });
       } catch (err) {
         // Fallback
       }
     }
-    return inMemory.blockedIPs.find(b => b.ip === ip) || null;
+    return inMemory.blockedIPs.find(b => normalizeIP(b.ip) === cleanIp) || null;
   },
   deleteBlockedIP: async (ip) => {
+    const cleanIp = normalizeIP(ip);
     if (isDbConnected()) {
       try {
-        return await BlockedIP.deleteOne({ ip });
+        return await BlockedIP.deleteMany({ $or: [{ ip: cleanIp }, { ip: `::ffff:${cleanIp}` }] });
       } catch (err) {
         // Fallback
       }
     }
     const initialLength = inMemory.blockedIPs.length;
-    inMemory.blockedIPs = inMemory.blockedIPs.filter(b => b.ip !== ip);
+    inMemory.blockedIPs = inMemory.blockedIPs.filter(b => normalizeIP(b.ip) !== cleanIp);
     return { deletedCount: initialLength - inMemory.blockedIPs.length };
   },
   createBlockedIP: async (blockData) => {
+    if (blockData.ip) {
+      blockData.ip = normalizeIP(blockData.ip);
+    }
     if (isDbConnected()) {
       try {
         const block = new BlockedIP(blockData);
@@ -198,13 +230,17 @@ export const dbStore = {
       try {
         const query = mongoose.Types.ObjectId.isValid(ipOrId)
           ? { _id: ipOrId }
-          : { ip: ipOrId };
+          : { $or: [{ ip: normalizeIP(ipOrId) }, { ip: `::ffff:${normalizeIP(ipOrId)}` }] };
         return await BlockedIP.findOneAndUpdate(query, { status: 'Inactive' }, { new: true });
       } catch (err) {
         // Fallback
       }
     }
-    const record = inMemory.blockedIPs.find(b => String(b._id) === String(ipOrId) || b.ip === ipOrId);
+    const cleanIp = normalizeIP(ipOrId);
+    const record = inMemory.blockedIPs.find(b => 
+      String(b._id) === String(ipOrId) || 
+      normalizeIP(b.ip) === cleanIp
+    );
     if (record) {
       record.status = 'Inactive';
       return record;
@@ -251,10 +287,11 @@ export const dbStore = {
     return newHistory;
   },
   countFailedLogins: async (ip, sinceDate) => {
+    const cleanIp = normalizeIP(ip);
     if (isDbConnected()) {
       try {
         return await LoginHistory.countDocuments({
-          ip,
+          $or: [{ ip: cleanIp }, { ip: `::ffff:${cleanIp}` }],
           success: false,
           timestamp: { $gte: sinceDate }
         });
@@ -263,7 +300,7 @@ export const dbStore = {
       }
     }
     return inMemory.loginHistory.filter(h => 
-      h.ip === ip && 
+      normalizeIP(h.ip) === cleanIp && 
       !h.success && 
       h.timestamp >= sinceDate
     ).length;
@@ -299,11 +336,16 @@ export const dbStore = {
     }
     return dbStore.filterAttackLogsMemory(filter).length;
   },
-  findAttackLogs: async (filter = {}, skip = 0, limit = 10) => {
+  findAttackLogs: async (filter = {}, skip = 0, limit = 10, sort = 'timestamp', order = 'desc') => {
     if (isDbConnected()) {
       try {
+        const sortObj = {};
+        sortObj[sort] = order === 'asc' ? 1 : -1;
+        if (sort !== 'timestamp') {
+          sortObj['timestamp'] = -1; // Secondary sort: newest first
+        }
         return await AttackLog.find(filter)
-          .sort({ timestamp: -1 })
+          .sort(sortObj)
           .skip(skip)
           .limit(limit);
       } catch (err) {
@@ -311,9 +353,30 @@ export const dbStore = {
       }
     }
     const filtered = dbStore.filterAttackLogsMemory(filter);
-    return filtered
-      .sort((a, b) => b.timestamp - a.timestamp)
-      .slice(skip, skip + limit);
+    filtered.sort((a, b) => {
+      let valA = a[sort];
+      let valB = b[sort];
+      if (sort === 'timestamp') {
+        valA = new Date(valA);
+        valB = new Date(valB);
+      } else if (sort === 'severity') {
+        const weights = { 'CRITICAL': 4, 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1 };
+        valA = weights[String(valA).toUpperCase()] || 0;
+        valB = weights[String(valB).toUpperCase()] || 0;
+      } else {
+        valA = String(valA || '').toLowerCase();
+        valB = String(valB || '').toLowerCase();
+      }
+      
+      if (valA < valB) return order === 'asc' ? -1 : 1;
+      if (valA > valB) return order === 'asc' ? 1 : -1;
+      
+      // Secondary sort: timestamp descending
+      const timeA = new Date(a.timestamp);
+      const timeB = new Date(b.timestamp);
+      return timeB - timeA;
+    });
+    return filtered.slice(skip, skip + limit);
   },
   filterAttackLogsMemory: (filter) => {
     return inMemory.attackLogs.filter(log => {
@@ -328,9 +391,17 @@ export const dbStore = {
         // search filter
         const match = filter.$or.some(cond => {
           const key = Object.keys(cond)[0];
-          const queryVal = cond[key].$regex.source || cond[key].$regex;
+          const queryVal = cond[key];
           const targetVal = String(log[key] || '');
-          return new RegExp(queryVal, 'i').test(targetVal);
+          if (queryVal instanceof RegExp) {
+            return queryVal.test(targetVal);
+          }
+          if (queryVal && typeof queryVal === 'object') {
+            const pattern = (queryVal.$regex && queryVal.$regex.source) || queryVal.$regex || '';
+            const options = queryVal.$options || 'i';
+            return new RegExp(pattern, options).test(targetVal);
+          }
+          return targetVal.toLowerCase().includes(String(queryVal).toLowerCase());
         });
         if (!match) return false;
       }
@@ -476,9 +547,17 @@ export const dbStore = {
       if (filter.$or) {
         const match = filter.$or.some(cond => {
           const key = Object.keys(cond)[0];
-          const queryVal = cond[key].$regex.source || cond[key].$regex;
+          const queryVal = cond[key];
           const targetVal = String(log[key] || '');
-          return new RegExp(queryVal, 'i').test(targetVal);
+          if (queryVal instanceof RegExp) {
+            return queryVal.test(targetVal);
+          }
+          if (queryVal && typeof queryVal === 'object') {
+            const pattern = (queryVal.$regex && queryVal.$regex.source) || queryVal.$regex || '';
+            const options = queryVal.$options || 'i';
+            return new RegExp(pattern, options).test(targetVal);
+          }
+          return targetVal.toLowerCase().includes(String(queryVal).toLowerCase());
         });
         if (!match) return false;
       }

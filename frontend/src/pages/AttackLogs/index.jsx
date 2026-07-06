@@ -9,7 +9,13 @@ const AttackLogs = () => {
 
   const [logs, setLogs] = useState([]);
   const [filter, setFilter] = useState('ALL');
+  const [attackTypeFilter, setAttackTypeFilter] = useState('ALL');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [search, setSearch] = useState('');
+  const [activeSearch, setActiveSearch] = useState('');
+  const [sortKey, setSortKey] = useState('timestamp');
+  const [sortOrder, setSortOrder] = useState('desc');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalLogs, setTotalLogs] = useState(0);
@@ -19,14 +25,19 @@ const AttackLogs = () => {
   // Modal State
   const [selectedLog, setSelectedLog] = useState(null);
 
-  const fetchAttackLogs = async (customSearch = null) => {
-    setLoading(true);
+  const fetchAttackLogs = async (customSearch = null, silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const params = {
         page,
         limit: 10,
         severity: filter,
-        search: customSearch !== null ? customSearch : search
+        attackType: attackTypeFilter,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+        sort: sortKey,
+        order: sortOrder,
+        search: customSearch !== null ? customSearch : (activeSearch !== undefined ? activeSearch : '')
       };
       const res = await api.get('/logs/attacks', { params });
       setLogs(res.data.logs);
@@ -35,23 +46,63 @@ const AttackLogs = () => {
     } catch (err) {
       console.error('Error loading attack logs:', err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
     if (urlIp) {
       setSearch(urlIp);
+      setActiveSearch(urlIp);
       fetchAttackLogs(urlIp);
     } else {
       fetchAttackLogs();
     }
-  }, [page, filter, urlIp]);
+
+    // Set up silent polling every 3 seconds
+    const interval = setInterval(() => {
+      fetchAttackLogs(urlIp || null, true);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [page, filter, urlIp, activeSearch, attackTypeFilter, startDate, endDate, sortKey, sortOrder]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     setPage(1);
-    fetchAttackLogs();
+    setActiveSearch(search);
+  };
+
+  const handleSortChange = (key) => {
+    if (sortKey === key) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortOrder('desc');
+    }
+    setPage(1);
+  };
+
+  const renderHeader = (label, key, isSortable = true) => {
+    if (!isSortable) {
+      return <th className="p-4">{label}</th>;
+    }
+    const isCurrent = sortKey === key;
+    return (
+      <th 
+        className="p-4 cursor-pointer hover:bg-cyan-950/20 text-white select-none transition group"
+        onClick={() => handleSortChange(key)}
+      >
+        <div className="flex items-center gap-1.5">
+          <span>{label}</span>
+          <span className={`text-[10px] transition-opacity duration-200 ${
+            isCurrent ? 'text-cyan-400 opacity-100' : 'text-cyber-muted opacity-0 group-hover:opacity-60'
+          }`}>
+            {isCurrent && sortOrder === 'asc' ? '▲' : '▼'}
+          </span>
+        </div>
+      </th>
+    );
   };
 
   const handleDelete = async (id) => {
@@ -114,53 +165,123 @@ const AttackLogs = () => {
       </div>
 
       {/* Filters Banner */}
-      <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-cyber-card border border-cyber-border p-4 rounded-xl">
-        <div className="flex gap-2">
-          {['ALL', 'HIGH', 'MEDIUM', 'LOW'].map((lvl) => (
-            <button
-              key={lvl}
-              onClick={() => {
-                setFilter(lvl);
+      <div className="bg-cyber-card border border-cyber-border p-5 rounded-xl space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Severity Filter */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-cyber-muted font-medium">Severity:</label>
+            <select
+              value={filter}
+              onChange={(e) => {
+                setFilter(e.target.value);
                 setPage(1);
               }}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                filter === lvl
-                  ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
-                  : 'text-cyber-muted hover:text-white border border-transparent'
-              }`}
+              className="bg-cyber-bg border border-cyber-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500 transition"
             >
-              {lvl}
-            </button>
-          ))}
+              <option value="ALL">All Severities</option>
+              <option value="HIGH">High</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="LOW">Low</option>
+            </select>
+          </div>
+
+          {/* Attack Type Filter */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-cyber-muted font-medium">Attack Type:</label>
+            <select
+              value={attackTypeFilter}
+              onChange={(e) => {
+                setAttackTypeFilter(e.target.value);
+                setPage(1);
+              }}
+              className="bg-cyber-bg border border-cyber-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500 transition"
+            >
+              <option value="ALL">All Attack Types</option>
+              <option value="SQL Injection">SQL Injection</option>
+              <option value="XSS Attempt">XSS Attempt</option>
+              <option value="Path Traversal">Path Traversal</option>
+              <option value="Command Injection">Command Injection</option>
+              <option value="Brute Force Attempt">Brute Force</option>
+              <option value="Suspicious Header">Suspicious Header</option>
+              <option value="Scanner Detection">Scanner Detection</option>
+            </select>
+          </div>
+
+          {/* Start Date */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-cyber-muted font-medium">Start Date:</label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => {
+                setStartDate(e.target.value);
+                setPage(1);
+              }}
+              className="bg-cyber-bg border border-cyber-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500 transition font-mono"
+            />
+          </div>
+
+          {/* End Date */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-cyber-muted font-medium">End Date:</label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => {
+                setEndDate(e.target.value);
+                setPage(1);
+              }}
+              className="bg-cyber-bg border border-cyber-border rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500 transition font-mono"
+            />
+          </div>
         </div>
-        
-        <form onSubmit={handleSearchSubmit} className="w-full md:w-auto flex gap-2">
-          <input
-            type="text"
-            placeholder="Search by IP, Type, Payload..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full md:w-64 bg-cyber-bg border border-cyber-border rounded-lg px-4 py-2 text-sm text-white placeholder-cyber-muted focus:outline-none focus:border-cyan-500"
-          />
-          <button
-            type="submit"
-            className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-sm font-semibold flex items-center gap-1.5 transition"
-          >
-            <FiSearch /> Search
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setSearch('');
-              setPage(1);
-              fetchAttackLogs('');
-            }}
-            title="Refresh logs"
-            className="px-3 py-2 bg-zinc-800 border border-cyber-border rounded-lg text-cyber-muted hover:text-white transition"
-          >
-            <FiRotateCw />
-          </button>
-        </form>
+
+        <div className="flex flex-col sm:flex-row gap-3 items-center justify-between border-t border-cyber-border pt-4">
+          <form onSubmit={handleSearchSubmit} className="w-full sm:w-auto flex gap-2">
+            <input
+              type="text"
+              placeholder="Search by IP, payload or path..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full sm:w-72 bg-cyber-bg border border-cyber-border rounded-lg px-4 py-2 text-sm text-white placeholder-cyber-muted focus:outline-none focus:border-cyan-500"
+            />
+            <button
+              type="submit"
+              className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-sm font-semibold flex items-center gap-1.5 transition"
+            >
+              <FiSearch /> Search
+            </button>
+          </form>
+
+          <div className="flex gap-2 w-full sm:w-auto">
+            <button
+              type="button"
+              onClick={() => fetchAttackLogs()}
+              className="px-4 py-2 bg-zinc-800 border border-cyber-border text-sm font-medium text-cyber-text rounded-lg hover:text-white hover:border-cyber-muted transition flex items-center justify-center gap-1.5"
+              title="Refresh Attack Logs Table"
+            >
+              <FiRotateCw /> Refresh
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSearch('');
+                setActiveSearch('');
+                setFilter('ALL');
+                setAttackTypeFilter('ALL');
+                setStartDate('');
+                setEndDate('');
+                setSortKey('timestamp');
+                setSortOrder('desc');
+                setPage(1);
+              }}
+              className="px-4 py-2 bg-zinc-800 border border-cyber-border text-sm font-medium text-cyber-text rounded-lg hover:text-white hover:border-cyber-muted transition flex items-center justify-center gap-1.5"
+              title="Reset Filters to Default"
+            >
+              Reset Filters
+            </button>
+          </div>
+        </div>
       </div>
 
       {loading ? (
@@ -174,13 +295,13 @@ const AttackLogs = () => {
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-cyber-border bg-cyan-950/20 text-xs font-semibold uppercase tracking-wider text-cyber-muted">
-                    <th className="p-4">Time</th>
-                    <th className="p-4">Attack Type</th>
-                    <th className="p-4">Severity</th>
-                    <th className="p-4">Method & Endpoint</th>
-                    <th className="p-4">Blocked Payload</th>
-                    <th className="p-4 font-mono">Source IP</th>
+                  <tr className="border-b border-cyber-border bg-cyan-950/20 text-xs font-semibold uppercase tracking-wider text-cyber-muted font-mono">
+                    {renderHeader('Time', 'timestamp')}
+                    {renderHeader('Attack Type', 'attackType')}
+                    {renderHeader('Severity', 'severity')}
+                    {renderHeader('Method & Endpoint', 'url', false)}
+                    {renderHeader('Blocked Payload', 'payload', false)}
+                    {renderHeader('Source IP', 'ip')}
                     <th className="p-4 text-center">Actions</th>
                   </tr>
                 </thead>

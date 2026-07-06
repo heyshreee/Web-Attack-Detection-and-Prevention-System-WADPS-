@@ -5,6 +5,8 @@ export const getAttackLogs = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
+    const sort = req.query.sort || 'timestamp';
+    const order = req.query.order || 'desc';
 
     const filter = {};
 
@@ -41,7 +43,7 @@ export const getAttackLogs = async (req, res) => {
     }
 
     const total = await dbStore.countAttackLogs(filter);
-    const logs = await dbStore.findAttackLogs(filter, skip, limit);
+    const logs = await dbStore.findAttackLogs(filter, skip, limit, sort, order);
 
     res.status(200).json({
       logs,
