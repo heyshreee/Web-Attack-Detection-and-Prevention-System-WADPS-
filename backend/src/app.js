@@ -140,6 +140,10 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date() });
 });
 
+app.get('/', (req, res) => {
+  res.status(200).json('Api is running...');
+});
+
 // Routes mounting
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
