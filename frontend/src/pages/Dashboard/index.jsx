@@ -51,7 +51,7 @@ const Dashboard = () => {
       const timelineRes = await api.get('/dashboard/timeline');
       setTimeline(timelineRes.data);
     } catch (err) {
-      console.error('Error fetching dashboard metrics:', err);
+
     } finally {
       setLoading(false);
     }
