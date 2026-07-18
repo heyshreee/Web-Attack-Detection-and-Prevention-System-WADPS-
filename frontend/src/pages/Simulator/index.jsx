@@ -144,12 +144,12 @@ const Simulator = () => {
     setResult(null);
 
     const attack = ATTACKS[activeTab];
-    const targetUrl = `http://localhost:5000${attack.endpoint}`;
+    const targetUrl = `${import.meta.env.VITE_API_URL.replace('/api', '')}${attack.endpoint}`;
 
     try {
       let response;
       let reqHeaders = {
-        Host: 'localhost:5000',
+        Host: 'apiwadps.vercel.app',
         'User-Agent': 'WADPS-Attack-Simulator/1.0',
         Accept: 'application/json',
         'Content-Type': 'application/json'
@@ -235,7 +235,7 @@ const Simulator = () => {
           reqHeaders['User-Agent'] = customPayload;
         }
 
-        const finalUrl = `http://localhost:5000${path}`;
+        const finalUrl = `${import.meta.env.VITE_API_URL.replace('/api', '')}${path}`;
         response = await axios.get(finalUrl, {
           params: { secured: secured },
           headers: customHeaders,
@@ -374,7 +374,7 @@ const Simulator = () => {
             <div>
               <span className="text-cyber-muted text-xs uppercase block mb-1">Target Route</span>
               <div className="bg-cyber-bg p-2.5 rounded-lg border border-cyber-border font-mono text-xs text-white">
-                <span className="text-cyan-400 font-bold">{ATTACKS[activeTab].method}</span> http://localhost:5000{ATTACKS[activeTab].endpoint}
+                <span className="text-cyan-400 font-bold">{ATTACKS[activeTab].method}</span> {import.meta.env.VITE_API_URL.replace('/api', '')}{ATTACKS[activeTab].endpoint}
               </div>
             </div>
 
@@ -445,7 +445,7 @@ const Simulator = () => {
                     <span className="text-cyber-muted text-xs uppercase block font-mono">Request Headers</span>
                     <pre className="bg-cyber-bg p-3 rounded-lg border border-cyber-border text-xs text-cyan-400 overflow-x-auto h-28 font-mono">
                       {JSON.stringify(result.requestHeadersSent || {
-                        Host: 'localhost:5000',
+                        Host: 'apiwadps.vercel.app',
                         'User-Agent': 'WADPS-Attack-Simulator/1.0',
                         Accept: 'application/json',
                         'Content-Type': 'application/json'
