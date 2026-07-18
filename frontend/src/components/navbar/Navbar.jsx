@@ -10,11 +10,12 @@ const Navbar = () => {
   const [unreadCount, setUnreadCount] = useState(0);
 
   const fetchUnreadCount = async () => {
+    if (!localStorage.getItem('token')) return;
     try {
       const res = await api.get('/alerts?read=false');
-      setUnreadCount(res.data.pagination.total || res.data.alerts.length || 0);
+      setUnreadCount(res.data?.pagination?.total ?? res.data?.alerts?.length ?? 0);
     } catch (err) {
-      console.error('Error fetching unread count:', err);
+      // silently fail - unread badge is non-critical
     }
   };
 
