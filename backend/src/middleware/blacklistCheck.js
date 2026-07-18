@@ -2,6 +2,18 @@ import { dbStore } from '../services/dbStore.js';
 import logger from '../config/logger.js';
 import { securityState } from '../config/securityState.js';
 
+// IPs and origins that are always trusted and never blacklisted
+const TRUSTED_IPS = [
+  '127.0.0.1',
+  '::1',
+  '::ffff:127.0.0.1',
+];
+
+const TRUSTED_ORIGINS = [
+  'https://wadps.vercel.app',
+  'https://apiwadps.vercel.app',
+];
+
 const blacklistCheck = async (req, res, next) => {
   // Bypass administrative controls, authentication, and logs from blacklisting
   if (
@@ -12,13 +24,20 @@ const blacklistCheck = async (req, res, next) => {
     return next();
   }
 
+  // Bypass for trusted IPs and official Vercel domains
+  const clientIP = req.ip;
+  const origin = req.headers.origin || '';
+  if (TRUSTED_IPS.includes(clientIP) || TRUSTED_ORIGINS.some(o => origin.startsWith(o))) {
+    return next();
+  }
+
   // Bypass if security settings are turned OFF
   if (!securityState.active) {
     return next();
   }
 
   try {
-    const clientIP = req.ip;
+    const clientIP = req.ip || '';
 
     // Check if the IP is blacklisted in the store (DB or In-Memory)
     const blockRecord = await dbStore.findBlockedIP(clientIP);

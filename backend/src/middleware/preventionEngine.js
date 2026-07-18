@@ -11,10 +11,29 @@ import {
   isScanner
 } from './detectionEngine.js';
 
+// IPs and origins that are always trusted — never WAF-scanned or auto-blocked
+const TRUSTED_IPS = [
+  '127.0.0.1',
+  '::1',
+  '::ffff:127.0.0.1',
+];
+
+const TRUSTED_ORIGINS = [
+  'https://wadps.vercel.app',
+  'https://apiwadps.vercel.app',
+];
+
 // Prevention Engine Middleware (Active blocking & IP blacklisting)
 const preventionEngine = async (req, res, next) => {
   // Bypass WAF inspection for admin control panel and log viewer
   if (req.originalUrl.startsWith('/api/admin') || req.originalUrl.startsWith('/api/logs')) {
+    return next();
+  }
+
+  // Bypass for trusted IPs and official Vercel domains
+  const clientIPCheck = req.ip || '';
+  const originCheck = req.headers.origin || '';
+  if (TRUSTED_IPS.includes(clientIPCheck) || TRUSTED_ORIGINS.some(o => originCheck.startsWith(o))) {
     return next();
   }
 
