@@ -1,7 +1,7 @@
 import express from 'express';
 import { securityState } from '../config/securityState.js';
 import logger from '../config/logger.js';
-import { dbStore, inMemory, isDbConnected } from '../services/dbStore.js';
+import { dbStore } from '../services/dbStore.js';
 import authMiddleware from '../middleware/authMiddleware.js';
 import AttackLog from '../models/AttackLog.js';
 import RequestLog from '../models/RequestLog.js';
@@ -68,44 +68,24 @@ const enrichBlockedIP = async (record) => {
   let targetEndpoint = '/api';
   let country = getCountryFromIP(ip);
 
-  if (isDbConnected()) {
-    try {
-      attackCount = await AttackLog.countDocuments({ ip });
-      requests = await RequestLog.countDocuments({ ip });
-      
-      const latestAttack = await AttackLog.findOne({ ip }).sort({ timestamp: -1 });
-      if (latestAttack) {
-        targetEndpoint = latestAttack.url;
-        if (latestAttack.country && latestAttack.country !== 'Localhost') {
-          country = latestAttack.country;
-        }
-      } else {
-        const latestRequest = await RequestLog.findOne({ ip }).sort({ timestamp: -1 });
-        if (latestRequest && latestRequest.country && latestRequest.country !== 'Localhost') {
-          country = latestRequest.country;
-        }
-      }
-    } catch (err) {
-      // Fallback to memory
-    }
-  } else {
-    const ipAttacks = inMemory.attackLogs.filter(log => log.ip === ip);
-    const ipRequests = inMemory.requestLogs.filter(log => log.ip === ip);
-    attackCount = ipAttacks.length;
-    requests = ipRequests.length;
+  try {
+    attackCount = await AttackLog.countDocuments({ ip });
+    requests = await RequestLog.countDocuments({ ip });
     
-    if (ipAttacks.length > 0) {
-      const latestAttack = [...ipAttacks].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
+    const latestAttack = await AttackLog.findOne({ ip }).sort({ timestamp: -1 });
+    if (latestAttack) {
       targetEndpoint = latestAttack.url;
       if (latestAttack.country && latestAttack.country !== 'Localhost') {
         country = latestAttack.country;
       }
-    } else if (ipRequests.length > 0) {
-      const latestRequest = [...ipRequests].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
-      if (latestRequest.country && latestRequest.country !== 'Localhost') {
+    } else {
+      const latestRequest = await RequestLog.findOne({ ip }).sort({ timestamp: -1 });
+      if (latestRequest && latestRequest.country && latestRequest.country !== 'Localhost') {
         country = latestRequest.country;
       }
     }
+  } catch (err) {
+    logger.error(`Error enriching blocked IP stats from MongoDB for ${ip}: ${err.message}`);
   }
 
   let baseScore = 20;
@@ -312,18 +292,11 @@ router.post('/blocked-ips', async (req, res) => {
         return res.status(400).json({ error: 'IP is already blocked.' });
       } else {
         // Re-activate previously inactive block
-        if (isDbConnected()) {
-          existingBlock.status = 'Active';
-          existingBlock.blockedAt = new Date();
-          existingBlock.reason = reason || 'Manual block by admin';
-          existingBlock.expiresAt = expiresAt;
-          await existingBlock.save();
-        } else {
-          existingBlock.status = 'Active';
-          existingBlock.blockedAt = new Date();
-          existingBlock.reason = reason || 'Manual block by admin';
-          existingBlock.expiresAt = expiresAt;
-        }
+        existingBlock.status = 'Active';
+        existingBlock.blockedAt = new Date();
+        existingBlock.reason = reason || 'Manual block by admin';
+        existingBlock.expiresAt = expiresAt;
+        await existingBlock.save();
 
         logger.info(`IP ${ip} manually re-activated/blocked by admin ${req.user.email}`);
 

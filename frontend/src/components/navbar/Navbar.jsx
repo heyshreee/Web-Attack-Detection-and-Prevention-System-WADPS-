@@ -44,7 +44,7 @@ const Navbar = () => {
 
       <div className="flex items-center gap-6">
         {/* Alerts Bell Indicator */}
-        <button 
+        <button
           onClick={() => navigate('/alerts')}
           className="relative text-cyber-muted hover:text-white transition p-1.5 rounded-lg hover:bg-cyber-border/40"
         >
