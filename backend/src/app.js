@@ -21,8 +21,12 @@ import bruteForceRoutes from './routes/bruteForceRoutes.js';
 import headerRoutes from './routes/headerRoutes.js';
 import scannerRoutes from './routes/scannerRoutes.js';
 import { dbStore } from './services/dbStore.js';
+import connectDB from './config/db.js';
 
 dotenv.config();
+
+// Connect to MongoDB
+connectDB();
 
 const app = express();
 

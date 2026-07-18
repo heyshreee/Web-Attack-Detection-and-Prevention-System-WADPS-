@@ -116,7 +116,7 @@ const generateMockData = () => {
 
 const generatedMock = generateMockData();
 
-// In-Memory Fallback Collections
+// In-Memory Fallback Collections on the server (doesn't write files to server)
 export const inMemory = {
   users: generatedMock.users,
   loginHistory: generatedMock.loginHistory,
@@ -131,15 +131,35 @@ export const isDbConnected = () => {
   return mongoose.connection.readyState === 1;
 };
 
-// Helper methods that fallback automatically
+// Seeder function triggered on successful MongoDB connection
+export const seedDatabase = async () => {
+  try {
+    const userCount = await User.countDocuments();
+    if (userCount === 0) {
+
+      const mock = generateMockData();
+      
+      await User.insertMany(mock.users);
+      await AttackLog.insertMany(mock.attackLogs);
+      await Alert.insertMany(mock.alerts);
+      await RequestLog.insertMany(mock.requestLogs);
+      
+
+    }
+  } catch (error) {
+
+  }
+};
+
+// Direct DB Store methods with transparent in-memory fallbacks
 export const dbStore = {
   // Users
   findUserByEmail: async (email) => {
     if (isDbConnected()) {
       try {
-        return await User.findOne({ email });
+        return await User.findOne({ email: email.toLowerCase() });
       } catch (err) {
-        // Fallback if call fails due to buffering error
+        // Fallback
       }
     }
     return inMemory.users.find(u => u.email === email.toLowerCase()) || null;
@@ -322,7 +342,6 @@ export const dbStore = {
       timestamp: new Date()
     };
     inMemory.attackLogs.push(newLog);
-    // Prune log overflow
     if (inMemory.attackLogs.length > 500) inMemory.attackLogs.shift();
     return newLog;
   },
@@ -371,7 +390,6 @@ export const dbStore = {
       if (valA < valB) return order === 'asc' ? -1 : 1;
       if (valA > valB) return order === 'asc' ? 1 : -1;
       
-      // Secondary sort: timestamp descending
       const timeA = new Date(a.timestamp);
       const timeB = new Date(b.timestamp);
       return timeB - timeA;
@@ -388,7 +406,6 @@ export const dbStore = {
         if (filter.timestamp.$lte && log.timestamp > filter.timestamp.$lte) return false;
       }
       if (filter.$or) {
-        // search filter
         const match = filter.$or.some(cond => {
           const key = Object.keys(cond)[0];
           const queryVal = cond[key];
