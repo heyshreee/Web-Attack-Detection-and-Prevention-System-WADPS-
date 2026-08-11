@@ -1,4 +1,5 @@
 import { dbStore } from '../services/dbStore.js';
+import logger from '../config/logger.js';
 
 export const getAlerts = async (req, res) => {
   try {
@@ -24,6 +25,7 @@ export const getAlerts = async (req, res) => {
       }
     });
   } catch (err) {
+    logger.error(`getAlerts error: ${err.message}`);
     res.status(500).json({ error: 'Server error fetching alerts', details: err.message });
   }
 };
@@ -38,6 +40,7 @@ export const markRead = async (req, res) => {
 
     res.status(200).json({ message: 'Alert marked as read', alert });
   } catch (err) {
+    logger.error(`markRead error: ${err.message}`);
     res.status(500).json({ error: 'Server error marking alert as read', details: err.message });
   }
 };
@@ -47,6 +50,7 @@ export const clearAll = async (req, res) => {
     await dbStore.markAllAlertsRead();
     res.status(200).json({ message: 'All alerts marked as read' });
   } catch (err) {
+    logger.error(`clearAll error: ${err.message}`);
     res.status(500).json({ error: 'Server error clearing alerts', details: err.message });
   }
 };
@@ -59,6 +63,7 @@ export const deleteAlert = async (req, res) => {
     }
     res.status(200).json({ message: 'Alert deleted successfully' });
   } catch (err) {
+    logger.error(`deleteAlert error: ${err.message}`);
     res.status(500).json({ error: 'Server error deleting alert', details: err.message });
   }
 };

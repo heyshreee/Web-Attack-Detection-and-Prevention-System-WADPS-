@@ -6,6 +6,7 @@ import BlockedIP from '../models/BlockedIP.js';
 import AttackLog from '../models/AttackLog.js';
 import Alert from '../models/Alert.js';
 import RequestLog from '../models/RequestLog.js';
+import logger from '../config/logger.js';
 
 const normalizeIP = (ip) => {
   if (typeof ip !== 'string') return ip;
@@ -147,7 +148,7 @@ export const seedDatabase = async () => {
 
     }
   } catch (error) {
-
+    logger.error(`Database seeding failed: ${error.message}`);
   }
 };
 
@@ -159,7 +160,7 @@ export const dbStore = {
       try {
         return await User.findOne({ email: email.toLowerCase() });
       } catch (err) {
-        // Fallback
+        logger.error(`DB query failed, using in-memory fallback: ${err.message}`);
       }
     }
     return inMemory.users.find(u => u.email === email.toLowerCase()) || null;
@@ -169,7 +170,7 @@ export const dbStore = {
       try {
         return await User.findById(id).select('-password');
       } catch (err) {
-        // Fallback
+        logger.error(`DB query failed, using in-memory fallback: ${err.message}`);
       }
     }
     const user = inMemory.users.find(u => String(u._id) === String(id));
@@ -185,7 +186,7 @@ export const dbStore = {
         const user = new User(userData);
         return await user.save();
       } catch (err) {
-        // Fallback
+        logger.error(`DB query failed, using in-memory fallback: ${err.message}`);
       }
     }
     const newUser = {
@@ -204,7 +205,7 @@ export const dbStore = {
       try {
         return await BlockedIP.findOne({ $or: [{ ip: cleanIp }, { ip: `::ffff:${cleanIp}` }] });
       } catch (err) {
-        // Fallback
+        logger.error(`DB query failed, using in-memory fallback: ${err.message}`);
       }
     }
     return inMemory.blockedIPs.find(b => normalizeIP(b.ip) === cleanIp) || null;
@@ -215,7 +216,7 @@ export const dbStore = {
       try {
         return await BlockedIP.deleteMany({ $or: [{ ip: cleanIp }, { ip: `::ffff:${cleanIp}` }] });
       } catch (err) {
-        // Fallback
+        logger.error(`DB query failed, using in-memory fallback: ${err.message}`);
       }
     }
     const initialLength = inMemory.blockedIPs.length;
@@ -231,7 +232,7 @@ export const dbStore = {
         const block = new BlockedIP(blockData);
         return await block.save();
       } catch (err) {
-        // Fallback
+        logger.error(`DB query failed, using in-memory fallback: ${err.message}`);
       }
     }
     const newBlock = {
@@ -253,7 +254,7 @@ export const dbStore = {
           : { $or: [{ ip: normalizeIP(ipOrId) }, { ip: `::ffff:${normalizeIP(ipOrId)}` }] };
         return await BlockedIP.findOneAndUpdate(query, { status: 'Inactive' }, { new: true });
       } catch (err) {
-        // Fallback
+        logger.error(`DB query failed, using in-memory fallback: ${err.message}`);
       }
     }
     const cleanIp = normalizeIP(ipOrId);
@@ -267,12 +268,40 @@ export const dbStore = {
     }
     return null;
   },
+  reactivateBlockedIP: async (ipOrId, updates = {}) => {
+    const updateData = {
+      status: 'Active',
+      blockedAt: new Date(),
+      reason: updates.reason || 'Manual block by admin',
+      expiresAt: updates.expiresAt || null,
+    };
+
+    if (isDbConnected()) {
+      try {
+        const query = mongoose.Types.ObjectId.isValid(ipOrId)
+          ? { _id: ipOrId }
+          : { $or: [{ ip: normalizeIP(ipOrId) }, { ip: `::ffff:${normalizeIP(ipOrId)}` }] };
+        return await BlockedIP.findOneAndUpdate(query, updateData, { new: true });
+      } catch (err) {
+        logger.error(`DB query failed, using in-memory fallback: ${err.message}`);
+      }
+    }
+
+    const cleanIp = normalizeIP(ipOrId);
+    const record = inMemory.blockedIPs.find(b =>
+      String(b._id) === String(ipOrId) || normalizeIP(b.ip) === cleanIp
+    );
+    if (!record) return null;
+
+    Object.assign(record, updateData);
+    return record;
+  },
   listBlockedIPs: async () => {
     if (isDbConnected()) {
       try {
         return await BlockedIP.find().sort({ blockedAt: -1 });
       } catch (err) {
-        // Fallback
+        logger.error(`DB query failed, using in-memory fallback: ${err.message}`);
       }
     }
     return [...inMemory.blockedIPs].sort((a, b) => b.blockedAt - a.blockedAt);
@@ -282,7 +311,7 @@ export const dbStore = {
       try {
         return await BlockedIP.countDocuments();
       } catch (err) {
-        // Fallback
+        logger.error(`DB query failed, using in-memory fallback: ${err.message}`);
       }
     }
     return inMemory.blockedIPs.length;
@@ -295,7 +324,7 @@ export const dbStore = {
         const history = new LoginHistory(historyData);
         return await history.save();
       } catch (err) {
-        // Fallback
+        logger.error(`DB query failed, using in-memory fallback: ${err.message}`);
       }
     }
     const newHistory = {
@@ -316,7 +345,7 @@ export const dbStore = {
           timestamp: { $gte: sinceDate }
         });
       } catch (err) {
-        // Fallback
+        logger.error(`DB query failed, using in-memory fallback: ${err.message}`);
       }
     }
     return inMemory.loginHistory.filter(h => 
@@ -333,7 +362,7 @@ export const dbStore = {
         const log = new AttackLog(logData);
         return await log.save();
       } catch (err) {
-        // Fallback
+        logger.error(`DB query failed, using in-memory fallback: ${err.message}`);
       }
     }
     const newLog = {
@@ -350,7 +379,7 @@ export const dbStore = {
       try {
         return await AttackLog.countDocuments(filter);
       } catch (err) {
-        // Fallback
+        logger.error(`DB query failed, using in-memory fallback: ${err.message}`);
       }
     }
     return dbStore.filterAttackLogsMemory(filter).length;
@@ -368,7 +397,7 @@ export const dbStore = {
           .skip(skip)
           .limit(limit);
       } catch (err) {
-        // Fallback
+        logger.error(`DB query failed, using in-memory fallback: ${err.message}`);
       }
     }
     const filtered = dbStore.filterAttackLogsMemory(filter);
@@ -433,7 +462,7 @@ export const dbStore = {
         const alert = new Alert(alertData);
         return await alert.save();
       } catch (err) {
-        // Fallback
+        logger.error(`DB query failed, using in-memory fallback: ${err.message}`);
       }
     }
     const newAlert = {
@@ -453,7 +482,7 @@ export const dbStore = {
       try {
         return await Alert.countDocuments(filter);
       } catch (err) {
-        // Fallback
+        logger.error(`DB query failed, using in-memory fallback: ${err.message}`);
       }
     }
     return inMemory.alerts.filter(a => {
@@ -470,7 +499,7 @@ export const dbStore = {
           .skip(skip)
           .limit(limit);
       } catch (err) {
-        // Fallback
+        logger.error(`DB query failed, using in-memory fallback: ${err.message}`);
       }
     }
     const filtered = inMemory.alerts.filter(a => {
@@ -487,7 +516,7 @@ export const dbStore = {
       try {
         return await Alert.findByIdAndUpdate(id, { read: true }, { new: true });
       } catch (err) {
-        // Fallback
+        logger.error(`DB query failed, using in-memory fallback: ${err.message}`);
       }
     }
     const alert = inMemory.alerts.find(a => String(a._id) === String(id));
@@ -502,7 +531,7 @@ export const dbStore = {
       try {
         return await Alert.updateMany({ read: false }, { read: true });
       } catch (err) {
-        // Fallback
+        logger.error(`DB query failed, using in-memory fallback: ${err.message}`);
       }
     }
     inMemory.alerts.forEach(a => { a.read = true; });
@@ -516,7 +545,7 @@ export const dbStore = {
         const log = new RequestLog(logData);
         return await log.save();
       } catch (err) {
-        // Fallback
+        logger.error(`DB query failed, using in-memory fallback: ${err.message}`);
       }
     }
     const newLog = {
@@ -533,7 +562,7 @@ export const dbStore = {
       try {
         return await RequestLog.countDocuments(filter);
       } catch (err) {
-        // Fallback
+        logger.error(`DB query failed, using in-memory fallback: ${err.message}`);
       }
     }
     return dbStore.filterRequestLogsMemory(filter).length;
@@ -546,7 +575,7 @@ export const dbStore = {
           .skip(skip)
           .limit(limit);
       } catch (err) {
-        // Fallback
+        logger.error(`DB query failed, using in-memory fallback: ${err.message}`);
       }
     }
     const filtered = dbStore.filterRequestLogsMemory(filter);
@@ -593,7 +622,7 @@ export const dbStore = {
         ]);
         return topIPAgg.length > 0 ? topIPAgg[0] : null;
       } catch (err) {
-        // Fallback
+        logger.error(`DB query failed, using in-memory fallback: ${err.message}`);
       }
     }
     const ipCounts = {};
@@ -613,7 +642,7 @@ export const dbStore = {
         ]);
         return topTypeAgg.length > 0 ? topTypeAgg[0] : null;
       } catch (err) {
-        // Fallback
+        logger.error(`DB query failed, using in-memory fallback: ${err.message}`);
       }
     }
     const typeCounts = {};
@@ -638,7 +667,7 @@ export const dbStore = {
           }
         ]);
       } catch (err) {
-        // Fallback
+        logger.error(`DB query failed, using in-memory fallback: ${err.message}`);
       }
     }
     const countsByDate = {};
@@ -663,7 +692,7 @@ export const dbStore = {
           }
         ]);
       } catch (err) {
-        // Fallback
+        logger.error(`DB query failed, using in-memory fallback: ${err.message}`);
       }
     }
     const countsByDate = {};
@@ -680,7 +709,7 @@ export const dbStore = {
       try {
         return await AttackLog.findByIdAndDelete(id);
       } catch (err) {
-        // Fallback
+        logger.error(`DB query failed, using in-memory fallback: ${err.message}`);
       }
     }
     const initialLength = inMemory.attackLogs.length;
@@ -692,7 +721,7 @@ export const dbStore = {
       try {
         return await Alert.findByIdAndDelete(id);
       } catch (err) {
-        // Fallback
+        logger.error(`DB query failed, using in-memory fallback: ${err.message}`);
       }
     }
     const initialLength = inMemory.alerts.length;
@@ -706,7 +735,7 @@ export const dbStore = {
           { $group: { _id: '$attackType', count: { $sum: 1 } } }
         ]);
       } catch (err) {
-        // Fallback
+        logger.error(`DB query failed, using in-memory fallback: ${err.message}`);
       }
     }
     const counts = {};
@@ -720,7 +749,7 @@ export const dbStore = {
           { $group: { _id: '$severity', count: { $sum: 1 } } }
         ]);
       } catch (err) {
-        // Fallback
+        logger.error(`DB query failed, using in-memory fallback: ${err.message}`);
       }
     }
     const counts = {};
@@ -736,7 +765,7 @@ export const dbStore = {
           { $limit: 5 }
         ]);
       } catch (err) {
-        // Fallback
+        logger.error(`DB query failed, using in-memory fallback: ${err.message}`);
       }
     }
     const counts = {};
@@ -755,7 +784,7 @@ export const dbStore = {
           { $limit: 5 }
         ]);
       } catch (err) {
-        // Fallback
+        logger.error(`DB query failed, using in-memory fallback: ${err.message}`);
       }
     }
     const counts = {};

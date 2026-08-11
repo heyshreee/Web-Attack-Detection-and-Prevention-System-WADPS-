@@ -1,4 +1,5 @@
 import { dbStore } from '../services/dbStore.js';
+import logger from '../config/logger.js';
 
 export const getAttackLogs = async (req, res) => {
   try {
@@ -55,6 +56,7 @@ export const getAttackLogs = async (req, res) => {
       }
     });
   } catch (err) {
+    logger.error(`getAttackLogs error: ${err.message}`);
     res.status(500).json({ error: 'Server error fetching attack logs', details: err.message });
   }
 };
@@ -95,6 +97,7 @@ export const getRequestLogs = async (req, res) => {
       }
     });
   } catch (err) {
+    logger.error(`getRequestLogs error: ${err.message}`);
     res.status(500).json({ error: 'Server error fetching request logs', details: err.message });
   }
 };
@@ -143,6 +146,7 @@ export const exportLogs = async (req, res) => {
       }
     }
   } catch (err) {
+    logger.error(`exportLogs error: ${err.message}`);
     res.status(500).json({ error: 'Server error exporting logs', details: err.message });
   }
 };
@@ -155,6 +159,7 @@ export const deleteLog = async (req, res) => {
     }
     res.status(200).json({ message: 'Log deleted successfully' });
   } catch (err) {
+    logger.error(`deleteLog error: ${err.message}`);
     res.status(500).json({ error: 'Server error deleting log', details: err.message });
   }
 };
