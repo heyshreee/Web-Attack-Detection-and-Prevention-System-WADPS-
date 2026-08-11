@@ -14,7 +14,7 @@ import {
   FiGrid,
   FiHardDrive
 } from 'react-icons/fi';
-import api from '../../services/api';
+import api, { apiOrigin } from '../../services/api';
 import axios from 'axios';
 
 const ATTACKS = {
@@ -144,7 +144,7 @@ const Simulator = () => {
     setResult(null);
 
     const attack = ATTACKS[activeTab];
-    const targetUrl = `${import.meta.env.VITE_API_URL.replace('/api', '')}${attack.endpoint}`;
+    const targetUrl = `${apiOrigin}${attack.endpoint}`;
 
     try {
       let response;
@@ -235,7 +235,7 @@ const Simulator = () => {
           reqHeaders['User-Agent'] = customPayload;
         }
 
-        const finalUrl = `${import.meta.env.VITE_API_URL.replace('/api', '')}${path}`;
+        const finalUrl = `${apiOrigin}${path}`;
         response = await axios.get(finalUrl, {
           params: { secured: secured },
           headers: customHeaders,
@@ -374,7 +374,7 @@ const Simulator = () => {
             <div>
               <span className="text-cyber-muted text-xs uppercase block mb-1">Target Route</span>
               <div className="bg-cyber-bg p-2.5 rounded-lg border border-cyber-border font-mono text-xs text-white">
-                <span className="text-cyan-400 font-bold">{ATTACKS[activeTab].method}</span> {import.meta.env.VITE_API_URL.replace('/api', '')}{ATTACKS[activeTab].endpoint}
+                <span className="text-cyan-400 font-bold">{ATTACKS[activeTab].method}</span> {apiOrigin}{ATTACKS[activeTab].endpoint}
               </div>
             </div>
 
