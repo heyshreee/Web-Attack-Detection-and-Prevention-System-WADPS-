@@ -1,7 +1,34 @@
 import axios from 'axios';
 
+const DEFAULT_API_URL = 'https://apiwadps.vercel.app/api';
+
+const normalizeApiUrl = (value) => {
+  const candidate = value?.trim();
+  if (!candidate) return DEFAULT_API_URL;
+
+  // Vite environment values are strings. Accept a hostname-only value and
+  // repair the common `https:example.com` typo before handing it to Axios.
+  const withProtocol = /^https?:\/\//i.test(candidate)
+    ? candidate
+    : /^https?:/i.test(candidate)
+      ? candidate.replace(/^(https?):\/?/i, '$1://')
+      : `https://${candidate}`;
+
+  try {
+    const url = new URL(withProtocol);
+    if (!['http:', 'https:'].includes(url.protocol)) throw new Error('Unsupported protocol');
+    return url.toString().replace(/\/$/, '');
+  } catch {
+    console.warn('Invalid VITE_API_URL; using the production API endpoint instead.');
+    return DEFAULT_API_URL;
+  }
+};
+
+export const apiBaseUrl = normalizeApiUrl(import.meta.env.VITE_API_URL);
+export const apiOrigin = new URL(apiBaseUrl).origin;
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'https://apiwadps.vercel.app/api',
+  baseURL: apiBaseUrl,
 });
 
 // Interceptor to attach JWT token
