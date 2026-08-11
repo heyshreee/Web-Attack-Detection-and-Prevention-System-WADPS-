@@ -15,7 +15,7 @@ const Navbar = () => {
       const res = await api.get('/alerts?read=false');
       setUnreadCount(res.data?.pagination?.total ?? res.data?.alerts?.length ?? 0);
     } catch (err) {
-      // silently fail - unread badge is non-critical
+      console.error('Failed to fetch unread alert count:', err);
     }
   };
 

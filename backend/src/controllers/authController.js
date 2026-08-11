@@ -5,9 +5,9 @@ import { dbStore, isDbConnected, inMemory } from '../services/dbStore.js';
 import logger from '../config/logger.js';
 
 // Helper to sign JWT tokens
-const generateToken = (userId) => {
+const generateToken = (userId, user) => {
   return jwt.sign(
-    { id: userId }, 
+    { id: userId, name: user.name, email: user.email, role: user.role }, 
     process.env.JWT_SECRET || 'default_super_secret_key_wadps_12345', 
     { expiresIn: '24h' }
   );
@@ -43,7 +43,7 @@ export const register = async (req, res) => {
 
     logger.info(`New admin registered: ${user.name} (${user.email})`);
 
-    const token = generateToken(user._id);
+    const token = generateToken(user._id, user);
 
     res.status(201).json({
       token,
@@ -86,7 +86,7 @@ export const login = async (req, res) => {
 
     logger.info(`Admin authenticated: ${user.name} (${user.email})`);
 
-    const token = generateToken(user._id);
+    const token = generateToken(user._id, user);
 
     res.status(200).json({
       token,
@@ -130,7 +130,7 @@ export const resetIP = async (req, res) => {
       }
     }
   } catch (err) {
-    // Ignore
+    logger.error(`resetIP outer error for IP ${clientIP}: ${err.message}`);
   }
 
   // Always reset in-memory fallback collections as well

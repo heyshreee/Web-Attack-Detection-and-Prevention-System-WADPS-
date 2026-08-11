@@ -1,4 +1,5 @@
 import { dbStore } from '../services/dbStore.js';
+import logger from '../config/logger.js';
 
 export const getStats = async (req, res) => {
   try {
@@ -40,6 +41,7 @@ export const getStats = async (req, res) => {
       recentLogs
     });
   } catch (err) {
+    logger.error(`getStats error: ${err.message}`);
     res.status(500).json({ error: 'Server error fetching statistics', details: err.message });
   }
 };
@@ -76,6 +78,7 @@ export const getTimeline = async (req, res) => {
 
     res.status(200).json(timelineData);
   } catch (err) {
+    logger.error(`getTimeline error: ${err.message}`);
     res.status(500).json({ error: 'Server error generating timeline data', details: err.message });
   }
 };
@@ -126,6 +129,7 @@ export const getAnalytics = async (req, res) => {
       topEndpoints
     });
   } catch (err) {
+    logger.error(`getAnalytics error: ${err.message}`);
     res.status(500).json({ error: 'Server error generating analytics data', details: err.message });
   }
 };

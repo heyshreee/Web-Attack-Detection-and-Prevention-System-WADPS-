@@ -292,11 +292,14 @@ router.post('/blocked-ips', async (req, res) => {
         return res.status(400).json({ error: 'IP is already blocked.' });
       } else {
         // Re-activate previously inactive block
-        existingBlock.status = 'Active';
-        existingBlock.blockedAt = new Date();
-        existingBlock.reason = reason || 'Manual block by admin';
-        existingBlock.expiresAt = expiresAt;
-        await existingBlock.save();
+        const reactivatedBlock = await dbStore.reactivateBlockedIP(existingBlock._id || ip, {
+          reason,
+          expiresAt,
+        });
+
+        if (!reactivatedBlock) {
+          return res.status(404).json({ error: 'IP not found in blacklist.' });
+        }
 
         logger.info(`IP ${ip} manually re-activated/blocked by admin ${req.user.email}`);
 
@@ -306,7 +309,7 @@ router.post('/blocked-ips', async (req, res) => {
           message: `IP address ${ip} was blacklisted again by admin ${req.user.name}. Reason: ${reason || 'None provided'}. Expiration: ${expiresAt ? expiresAt.toLocaleString() : 'Permanent'}`,
         });
 
-        const enriched = await enrichBlockedIP(existingBlock);
+        const enriched = await enrichBlockedIP(reactivatedBlock);
         return res.status(200).json(enriched);
       }
     }

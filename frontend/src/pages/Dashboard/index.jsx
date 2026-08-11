@@ -36,6 +36,8 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [toggleLoading, setToggleLoading] = useState(false);
 
+  const intervalRef = React.useRef(null);
+
   const fetchDashboardData = async () => {
     try {
       // 1. Fetch Firewall Security Status
@@ -44,14 +46,18 @@ const Dashboard = () => {
 
       // 2. Fetch Aggregated Statistics & Recent Logs
       const statsRes = await api.get('/dashboard/stats');
-      setStats(statsRes.data.stats);
-      setRecentLogs(statsRes.data.recentLogs);
+      if (statsRes.data?.stats) setStats(statsRes.data.stats);
+      setRecentLogs(statsRes.data?.recentLogs || []);
 
       // 3. Fetch Timeline Graph Data
       const timelineRes = await api.get('/dashboard/timeline');
       setTimeline(timelineRes.data);
     } catch (err) {
-
+      if (err.response?.status === 401 && intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      console.error('Dashboard fetch error:', err);
     } finally {
       setLoading(false);
     }
@@ -59,9 +65,10 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchDashboardData();
-    // Poll stats every 3 seconds for fast live updates
-    const interval = setInterval(fetchDashboardData, 3000);
-    return () => clearInterval(interval);
+    intervalRef.current = setInterval(fetchDashboardData, 3000);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   }, []);
 
   const handleToggle = async () => {
